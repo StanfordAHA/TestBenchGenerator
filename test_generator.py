@@ -73,6 +73,6 @@ def DefineTester(cgra_file, collateral_file):
     return Tester
 
 if __name__ == '__main__':
-    cgra = DefineTester('top.v', 'collateral.json')
+    cgra = DefineTester('top.v', 'pointwise.io.json')
     m.compile('tester', cgra)
 
