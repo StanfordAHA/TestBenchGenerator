@@ -1,7 +1,18 @@
 from itertools import chain
 import json
-
 import magma as m
+
+_CGRA_SIGNAL_PORTS = [
+        ('config_addr_in', m.Array(32, m.BitIn)),
+        ('config_data_in', m.Array(32, m.BitIn)),
+        ('clk_in',         m.BitIn),
+        ('reset_in',       m.BitIn),
+        ('tdi',            m.BitIn),
+        ('tms',            m.BitIn),
+        ('tck',            m.BitIn),
+        ('trst_n',         m.BitIn),
+        ('tdo',            m.BitOut),
+        ]
 
 def _flatten(l):
     return list(chain(*l))
@@ -24,9 +35,10 @@ def DefineTester(cgra_file, collateral_file):
     with open(collateral_file, 'r') as f:
         io_d = json.load(f)
 
-    ios = _flatten(
-            (mod, m.Array(int(c['width']), _s2b(c['mode']))) for mod, c in io_d.items()
-            )
+    ios = _flatten(chain(
+        _CGRA_SIGNAL_PORTS,
+        ((mod, m.Array(int(c['width']), _s2b(c['mode']))) for mod, c in io_d.items())
+    ))
 
     class Tester(m.Circuit):
         name = "CGRA_tester"
@@ -37,13 +49,16 @@ def DefineTester(cgra_file, collateral_file):
             cgra = cgra_def()
 
             for port in io.interface:
-                direct = io_d[port]['mode']
-
-                for bit, pad in io_d[port]['bits'].items():
-                    if direct == "out":
+                if port in io_d:
+                    #port is a pin
+                    direct = io_d[port]['mode']
+                    for bit, pad in io_d[port]['bits'].items():
                         m.wire(cgra.interface[pad + '_' + direct], io.interface[port][int(bit)])
-                    else:
-                        m.wire(io.interface[port][int(bit)], cgra.interface[pad + '_' + direct])
+                else:
+                    #port is a control signal
+                    m.wire(cgra.interface[port], io.interface[port])
+
+
 
     return Tester
 
