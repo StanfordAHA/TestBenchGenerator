@@ -53,10 +53,20 @@ def DefineTester(cgra_file, collateral_file):
                     #port is a pin
                     direct = io_d[port]['mode']
                     for bit, pad in io_d[port]['bits'].items():
-                        m.wire(cgra.interface[pad + '_' + direct], io.interface[port][int(bit)])
+                        try:
+                            #pad + '_' + direct is the 'de-tristated' name
+                            m.wire(cgra.interface[pad + '_' + direct], io.interface[port][int(bit)])
+                        except KeyError as e:
+                            Print('Looks like their is some sort of inconsistency between the cgra_info (or at least the collateral) and top.v')
+                            raise e
                 else:
                     #port is a control signal
-                    m.wire(cgra.interface[port], io.interface[port])
+                    try:
+                        m.wire(cgra.interface[port], io.interface[port])
+                    except KeyError as e:
+                        Print('Looks like _CGRA_SIGNAL_PORTS is no longer correct')
+                        raise e
+
 
 
 
