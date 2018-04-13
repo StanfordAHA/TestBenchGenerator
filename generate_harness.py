@@ -62,9 +62,9 @@ for module in io_collateral:
 
     if mode == 'in':
         input_body += f"""
-            {module}_file.read(&{module}_in, sizeof(uint16_t));
+            {module}_file.read((char *)&{module}_in, sizeof(uint16_t));
             if ({module}_file.eof()) {{
-                std::cout << "Reached end of file {module}_file" << std::endl;
+                std::cout << "Reached end of file {file_name}" << std::endl;
                 break;
             }}
             {wrapper_name}->{module} = {module}_in;
@@ -72,7 +72,7 @@ for module in io_collateral:
     else:
         output_body += f"""
             {module}_out = {wrapper_name}->{module};
-            {module}_file.write(&{module}_out, sizeof(uint16_t));
+            {module}_file.write((char *)&{module}_out, sizeof(uint16_t));
         """
 
     file_close += f"""
@@ -83,7 +83,7 @@ harness = f"""\
 #include "V{wrapper_name}.h"
 #include "verilated.h"
 #include <iostream>
-#include <cstdint>
+#include "stdint.h"
 #include <fstream>
 
 #define next(circuit) \\
@@ -109,36 +109,42 @@ int main(int argc, char **argv) {{
     {wrapper_name}->clk_in = 0;
     {wrapper_name}->config_addr_in = 0;
     {wrapper_name}->config_data_in = 0;
-    std::cout << "Initializing the CGRA by holding reset high for " << NUM_RESET_CYCLES << "cycles" << std::endl;
     {wrapper_name}->reset_in = 0;
     {wrapper_name}->eval();
+    std::cout << "Initializing the CGRA by holding reset high for " << NUM_RESET_CYCLES << "cycles" << std::endl;
 
     {wrapper_name}->reset_in = 1;
     for (int i = 0; i < NUM_RESET_CYCLES; i++) {{
         // TODO: SR's test bench starts on negative edge
         next({wrapper_name});
     }}
+    std::cout << "Done initializing" << std::endl;
 
     {wrapper_name}->reset_in = 0;
     step({wrapper_name});  // clk_in = 1
     next({wrapper_name});  // clk_in = 1
 
+    std::cout << "Beginning configuration" << std::endl;
     for (int i = 0; i < {len(config_data_arr)}; i++) {{
         {wrapper_name}->config_data_in = config_data_arr[i];
         {wrapper_name}->config_addr_in = config_addr_arr[i];
         next({wrapper_name}); // clk_in = 1
     }}
+    std::cout << "Done configuring" << std::endl;
 
-    for (int i = 0; i < {args.max_clock_cycles}) {{
+    std::cout << "Running test" << std::endl;
+    for (int i = 0; i < {args.max_clock_cycles}; i++) {{
         {input_body}
         step({wrapper_name}); // clk_in = 0
         {output_body}
         step({wrapper_name}); // clk_in = 1
+        if (i % 10 == 0) std::cout << "Cycle: " << i << std::endl;
     }}
+    std::cout << "Done testing" << std::endl;
 
     {file_close}
 
-    delete V{wrapper_name};
+    delete {wrapper_name};
 }}
 """
 
