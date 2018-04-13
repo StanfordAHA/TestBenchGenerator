@@ -1,0 +1,8 @@
+CGRA_wrapper.v
+*.hex
+*.raw
+__pycache__
+harness.cpp
+obj_dir
+parsetab.py
+parser.out
