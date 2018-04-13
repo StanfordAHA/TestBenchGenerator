@@ -110,6 +110,9 @@ int main(int argc, char **argv) {{
     {wrapper_name}->config_addr_in = 0;
     {wrapper_name}->config_data_in = 0;
     std::cout << "Initializing the CGRA by holding reset high for " << NUM_RESET_CYCLES << "cycles" << std::endl;
+    {wrapper_name}->reset_in = 0;
+    {wrapper_name}->eval();
+
     {wrapper_name}->reset_in = 1;
     for (int i = 0; i < NUM_RESET_CYCLES; i++) {{
         // TODO: SR's test bench starts on negative edge
