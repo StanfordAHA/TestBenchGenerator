@@ -137,6 +137,8 @@ int main(int argc, char **argv) {{
     }}
 
     {file_close}
+
+    delete V{wrapper_name};
 }}
 """
 
