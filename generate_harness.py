@@ -106,7 +106,7 @@ int main(int argc, char **argv) {{
 
     {file_setup}
 
-    {wrapper_name}->clk_in = 0;
+    {wrapper_name}->clk_in = 1;
     {wrapper_name}->config_addr_in = 0;
     {wrapper_name}->config_data_in = 0;
     std::cout << "Initializing the CGRA by holding reset high for " << NUM_RESET_CYCLES << "cycles" << std::endl;
