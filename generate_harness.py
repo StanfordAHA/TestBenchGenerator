@@ -106,7 +106,7 @@ int main(int argc, char **argv) {{
 
     {file_setup}
 
-    {wrapper_name}->clk_in = 1;
+    {wrapper_name}->clk_in = 0;
     {wrapper_name}->config_addr_in = 0;
     {wrapper_name}->config_data_in = 0;
     std::cout << "Initializing the CGRA by holding reset high for " << NUM_RESET_CYCLES << "cycles" << std::endl;
@@ -119,17 +119,21 @@ int main(int argc, char **argv) {{
         next({wrapper_name});
     }}
 
+    {wrapper_name}->reset_in = 0;
+    step({wrapper_name});  // clk_in = 1
+    next({wrapper_name});  // clk_in = 1
+
     for (int i = 0; i < {len(config_data_arr)}; i++) {{
         {wrapper_name}->config_data_in = config_data_arr[i];
         {wrapper_name}->config_addr_in = config_addr_arr[i];
-        next({wrapper_name});
+        next({wrapper_name}); // clk_in = 1
     }}
 
     for (int i = 0; i < {args.max_clock_cycles}) {{
         {input_body}
-        step({wrapper_name});
+        step({wrapper_name}); // clk_in = 0
         {output_body}
-        step({wrapper_name});
+        step({wrapper_name}); // clk_in = 1
     }}
 
     {file_close}
