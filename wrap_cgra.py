@@ -67,7 +67,9 @@ def DefineTester(cgra_file, collateral_file, wrapped_name):
                         Print('Looks like _CGRA_SIGNAL_PORTS is no longer correct')
                         raise e
 
-
+            for port in cgra.interface:
+                if cgra.interface[port].value() is None and isinstance(cgra.interface[port], m.BitIn):
+                    m.wire(cgra.interface[port], m.GND)
 
 
     return Tester
