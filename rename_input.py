@@ -20,7 +20,7 @@ assert name is not None, "We need at least one in"
 if delay_out:
     with open(input_file_name, "rb") as input_file:
         with open(f"{name}.raw", "wb") as output_file:
-            for i in range(delay_out):
+            for i in range(int(delay_out)):
                 output_file.write("\0")
             output_file.write(input_file)
 else:

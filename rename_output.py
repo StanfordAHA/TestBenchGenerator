@@ -19,7 +19,7 @@ assert name is not None, "We need at least one output"
 
 if delay_in:
     with open(f"{name}.raw", "r+wb") as output_file:
-        output_file.write(output_file[delay_in:])
+        output_file.write(output_file[int(delay_in):])
 
 # TODO: Why do we we do this post processing for these apps?
 if app in ["conv_1_2"]:
