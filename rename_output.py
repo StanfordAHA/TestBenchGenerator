@@ -1,9 +1,9 @@
 import json
 import sys
-import delegator
+import shutil
 
 with open(sys.argv[1], "r") as file:
-    info = json.load(f)
+    info = json.load(file)
 
 target_file_name = sys.argv[2]
 
@@ -15,4 +15,4 @@ for key in info:
 
 assert name is not None, "We need at least one output"
 
-delegator.run(f"cp {name}.raw {target_file_name}")
+shutil.copy(f"{name}.raw", target_file_name)

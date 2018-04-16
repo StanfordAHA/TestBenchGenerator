@@ -11,6 +11,7 @@ parser.add_argument('--trace-file', help='Trace file', default=None)
 parser.add_argument('--max-clock-cycles', help='Max number of clock cyles to run', default=40, type=int)
 parser.add_argument('--wrapper-module-name', help='Name of the wrapper module', default='CGRA_wrapper')
 parser.add_argument('--chunk-size', help="Size in bits of the data in the input/output files", default=8, type=int)
+parser.add_argument('--output-file-name', help="Name of the generated harness file", default="harness.cpp")
 
 args = parser.parse_args()
 
@@ -149,5 +150,5 @@ int main(int argc, char **argv) {{
 }}
 """
 
-with open("harness.cpp", "w") as harness_file:
+with open(args.output_file_name, "w") as harness_file:
     harness_file.write(harness)
