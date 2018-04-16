@@ -9,7 +9,7 @@ parser.add_argument('--pnr-io-collateral', metavar='<collateral_file>.io.json', 
 parser.add_argument('--bitstream', metavar='<BITSTREAM_FILE>', help='Bitstream file containing the CGRA configuration', required=True)
 parser.add_argument('--trace-file', help='Trace file', default=None)
 parser.add_argument('--max-clock-cycles', help='Max number of clock cyles to run', default=40, type=int)
-parser.add_argument('--wrapper-module-name', help='Name of the wrapper module', default='CGRA_wrapper')
+parser.add_argument('--wrapper-module-name', help='Name of the wrapper module', default='top')
 parser.add_argument('--chunk-size', help="Size in bits of the data in the input/output files", default=8, type=int)
 parser.add_argument('--output-file-name', help="Name of the generated harness file", default="harness.cpp")
 
@@ -69,11 +69,18 @@ for module in io_collateral:
                 std::cout << "Reached end of file {file_name}" << std::endl;
                 break;
             }}
-            {wrapper_name}->{module} = {module}_in;
+        """
+        for bit, pad in io_collateral[module]["bits"].items():
+            input_body += f"""
+            {wrapper_name}->{pad}_in = get_bit({bit}, {module}_in);
         """
     else:
+        output_body += f"{module}_out = 0;\n"
+        for bit, pad in io_collateral[module]["bits"].items():
+            output_body += f"""
+                set_bit({wrapper_name}->{pad}_in, {bit}, {module}_out);
+            """
         output_body += f"""
-            {module}_out = {wrapper_name}->{module};
             {module}_file.write((char *)&{module}_out, sizeof(uint{args.chunk_size}_t));
         """
 
@@ -100,6 +107,14 @@ static const uint32_t NUM_RESET_CYCLES = 5;
 void step(V{wrapper_name} *{wrapper_name}) {{
     {wrapper_name}->clk_in ^= 1;
     {wrapper_name}->eval();
+}}
+
+uint8_t get_bit(uint8_t bit_position, uint{args.chunk_size}_t bit_vector) {{
+    return (bit_vector >> bit_position) & 1;
+}}
+
+void set_bit(uint8_t value, uint8_t bit_position, uint{args.chunk_size}_t &bit_vector) {{
+    bit_vector |= (value >> bit_position);
 }}
 
 int main(int argc, char **argv) {{
