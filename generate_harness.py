@@ -78,7 +78,7 @@ for module in io_collateral:
         output_body += f"{module}_out = 0;\n"
         for bit, pad in io_collateral[module]["bits"].items():
             output_body += f"""
-                set_bit({wrapper_name}->{pad}_in, {bit}, {module}_out);
+                set_bit({wrapper_name}->{pad}_out, {bit}, {module}_out);
             """
         output_body += f"""
             {module}_file.write((char *)&{module}_out, sizeof(uint{args.chunk_size}_t));
@@ -114,7 +114,7 @@ uint8_t get_bit(uint8_t bit_position, uint{args.chunk_size}_t bit_vector) {{
 }}
 
 void set_bit(uint8_t value, uint8_t bit_position, uint{args.chunk_size}_t &bit_vector) {{
-    bit_vector |= (value >> bit_position);
+    bit_vector |= (value << bit_position);
 }}
 
 int main(int argc, char **argv) {{
