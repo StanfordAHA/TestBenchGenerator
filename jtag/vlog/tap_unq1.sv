@@ -128,8 +128,8 @@ module tap_unq1
    
 
    logic 	muxed_tdo;
-   logic [4:0] instruction;
-   logic [15:0] 	tap_state;
+   logic [4:0] instruction/* verilator public */;
+   logic [15:0] 	tap_state /* verilator public */;
 
    logic 		shift_dr; 
    logic 		sync_capture_en; // active low

@@ -1,13 +1,20 @@
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include "Vtop.h"
+#include "Vtop_global_controller.h"
+#include "Vtop_jtag_unq1.h"
+#include "Vtop_cfg_and_dbg_unq1.h"
+#include "Vtop_tap_unq1.h"
+#include "Vtop_DW_tap__W5_I1_S1.h"
 #include "verilated.h"
 #include "jtagdriver.h"
 
 
 using namespace std;
 
-#define P(val) ((uint64_t) val)
+//Need if you are passing to cout
+#define cast(val) ((uint32_t) val)
 
 int main(int argc, char **argv) {
   
@@ -18,6 +25,24 @@ int main(int argc, char **argv) {
   
   jtag->reset();
   jtag->write_config_op(JTAGDriver::OP_WRITE);
-  cout << P(top->config_data_out) << endl;
+  assert(top->write==1);
+  
+  jtag->write_config(123,456);
+  assert(cast(top->config_addr_out)==123);
+  assert(cast(top->config_data_out)==456);
 
+  vector<std::pair<uint32_t,uint32_t>> testconfigs({
+    {123,456},
+    {0xaaaaaaaa,0x55555555},
+    {0xffffffff,0x99999999},
+    {0xabcdef12,0x01234567}
+  });
+  for (auto config : testconfigs) {
+    uint32_t addr = config.first;
+    uint32_t data = config.second;
+    jtag->write_config(addr,data);
+    assert(top->config_addr_out==addr);
+    assert(top->config_data_out==data);
+  }
+  cout << "Success!!!" << endl;
 } 

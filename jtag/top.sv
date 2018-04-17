@@ -116,11 +116,13 @@ trst_n
 
   wire [31:0] config_addr_jtag_out;
   wire [31:0] config_data_jtag_out;
-  wire [4:0] op;
+  wire [4:0] op /* verilator public */;
   reg [31:0] config_data_jtag_in;
   reg clk;
   reg clk_domain;
+  /* verilator lint_off UNOPTFLAT */;
   reg sys_clk_activated;
+  /* verilator lint_on UNOPTFLAT */;
   //Extra flops to cross clock boundary
   reg sys_clk_act_sync_1;
   reg sys_clk_act_sync_2;
@@ -224,8 +226,9 @@ reg [31:0] analog_addr;
 
   //delay_sel[1] specifies delay for all_stalled_tck
   //delay_sel[0] specifices delay for all_stalled_sys
+  /* verilator lint_off UNOPTFLAT */; 
   logic [1:0] delay_sel;
-
+  /* verilator lint_on UNOPTFLAT */;
   logic clk_switch_request;
   logic [31:0] TST;
   logic [31:0] counter;

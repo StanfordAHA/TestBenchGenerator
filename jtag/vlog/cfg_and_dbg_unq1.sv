@@ -136,7 +136,7 @@ module cfg_and_dbg_unq1
     input	 logic sys_clk_activated,
 
 
-    input        logic  tms,          	// JTAG Test Mode Select
+    input        logic  tms /*verilator public*/,          	// JTAG Test Mode Select
     input        logic  tck,          	// JTAG Test Clock
     input        logic  trst_n,         // JTAG Test Reset
     input        logic  tdi,          	// JTAG Test Data Input
@@ -157,12 +157,12 @@ module cfg_and_dbg_unq1
    logic 	  sc_cfg_data_tdo;
    // sc_cfg_inst				
    logic 	  sc_cfg_inst_capture_dr;		
-   logic 	  sc_cfg_inst_shift_dr;			
+   logic 	  sc_cfg_inst_shift_dr /* verilator public */;			
    logic 	  sc_cfg_inst_update_dr;		
    logic 	  sc_cfg_inst_tdo;
    // sc_cfg_addr				
    logic 	  sc_cfg_addr_capture_dr;		
-   logic 	  sc_cfg_addr_shift_dr;			
+   logic 	  sc_cfg_addr_shift_dr /* verilator public */;			
    logic 	  sc_cfg_addr_update_dr;		
    logic 	  sc_cfg_addr_tdo;
 
@@ -222,14 +222,15 @@ module cfg_and_dbg_unq1
    // to go through the chain of reg-files.
    /***************************************************************************/
    // shift in/out the instuction
-   logic [4:0] sc_inst;
+   
+   logic [4:0] sc_inst/*verilator public*/;
    flop_unq1 sc_inst_reg 
      (.dout(sc_inst),	.din({tdi, sc_inst[4:1]}),
       .Clk(tck),	.en(sc_cfg_inst_shift_dr),      .Reset(test_logic_reset));
 
    // Qualify the instruction
    logic [3:0] inst_update_qual;
-   logic       inst_update_qualified;
+   logic       inst_update_qualified /* verilator public */;
    assign inst_update_qualified = ((sys_clk_activated & inst_update_qual==4'b1110) | (!sys_clk_activated & inst_update_qual[3]==1)) ? 1'b1:1'b0;
    flop_unq2 inst_update_reg 
      (.dout(inst_update_qual),	.din({sc_cfg_inst_update_dr, inst_update_qual[3:1]}),
@@ -246,7 +247,7 @@ module cfg_and_dbg_unq1
    
    //*******
    // shift in/out the address
-   logic [31:0] sc_addr;
+   logic [31:0] sc_addr/*verilator public*/;
    flop_unq3  sc_addr_reg 
      (.dout(sc_addr),	.din({tdi, sc_addr[31:1]}),
       .Clk(tck),	.en(sc_cfg_addr_shift_dr),      .Reset(test_logic_reset));
