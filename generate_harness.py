@@ -20,6 +20,8 @@ config_addr_arr = []
 
 with open(args.bitstream, "r") as bitstream_file:
     for line in bitstream_file:
+        if line[0] == "#" or line == "\n":
+            continue  # Skip comment or empty lines from serpent bistream
         config_addr, config_data = line.split()
         config_addr_arr.append(f"0x{config_addr}")
         config_data_arr.append(f"0x{config_data}")
