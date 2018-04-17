@@ -5,6 +5,7 @@
 //  input  tms;
 //  input  trst_n;
 //  input [31:0] config_data_in;
+#include <bitset>
 
 class JTAGDriver {
   public:
@@ -67,11 +68,12 @@ class JTAGDriver {
     }
     void print() {
       //cout << "--" << endl;
-      ////cout << "Wr " << (uint64_t) top->write << endl;
+      //cout << "Wr " << (uint64_t) top->write << endl;
       //cout << "addr " << (uint64_t) top->config_addr_out << endl;
       //cout << "tms " << (uint64_t) top->tms << endl;
-      //cout << "tdi " << (uint64_t) top->tdi << endl;
       //cout << "tap: " << top1(top->global_controller->jtag_controller->cfg_and_dbg->tap->tap_state) << endl;
+      //cout << "tdi " << (uint64_t) top->tdi << endl;
+      //cout << "tdo " << (uint64_t) top->tdo << endl;
       //cout << "inst: " << (uint64_t) (top->global_controller->jtag_controller->cfg_and_dbg->tap->instruction) << endl;
       //cout << "sc_addr: " << (uint64_t) (top->global_controller->jtag_controller->cfg_and_dbg->sc_addr) << endl;
       //cout << "sc_shift: " << (uint64_t) (top->global_controller->jtag_controller->cfg_and_dbg->sc_cfg_addr_shift_dr) << endl;
@@ -95,61 +97,86 @@ class JTAGDriver {
       return tdo;
     }
 
-    void shift(uint32_t value, uint32_t bits) {
+    //returns the bitvector of tdo
+    uint32_t shift(uint32_t value, uint32_t bits) {
       if (bits <32) assert((value>>bits)==0); //Check only 'size' bits are set
+      bitset<32> inval(value);
+      bitset<32> outval(0);
+      uint32_t ret = 0;
       for (int i=0; i<bits; ++i) { //lsb first
         uint8_t tms = i==bits-1?1:0; //Exit on last
-        this->step(tms,(value >> i)&1); 
+        uint8_t tdo = this->step(tms,inval[i]); 
+        outval[i] = tdo;
       }
+      return outval.to_ulong();
     }
 
-    void write_IR(IRValue addr) {
+    //will return previous value of IR (5 bits)
+    uint8_t write_IR(IRValue addr) {
       //if (this->cur_ir == addr) return; //"caching"
       this->step(1); //select DR
       this->step(1); //select IR
       this->step(0); //capture IR
       this->step(0); //shift IR
-      this->shift((uint32_t) addr, 5); //Shift in the data and exit1
+      uint8_t ret = this->shift((uint32_t) addr, 5); //Shift in the data and exit1
       this->step(1); //update IR
       this->step(0); // idle
       this->step(0); // idle //Need this second idle state
       
       this->cur_ir = addr;
+      return ret;
     }
 
-    void write_DR(uint32_t value, uint32_t bits) {
+    uint32_t write_DR(uint32_t value, uint32_t bits) {
       //if (this->cur_config_data_bits == bits && this->cur_config_data == value) return;
       this->step(1); // select DR
       this->step(0); // capture DR
       this->step(0); // shift DR
-      this->shift(value, bits); //shift in data, and exit1
+      uint32_t ret = this->shift(value, bits); //shift in data, and exit1
       this->step(1); // update DR
       this->step(0); // idle
       this->step(0); // idle
 
       this->cur_config_data_bits = bits;
       this->cur_config_data = value;
-    }
 
-    void write_config_addr(uint32_t config_addr) {
+      return ret;
+    }
+    
+    //Returns whatever was in the config_addr DR
+    uint32_t write_config_addr(uint32_t config_addr) {
       this->write_IR(IR_CONFIG_ADDRESS);
-      this->write_DR(config_addr,32);
+      return this->write_DR(config_addr,32);
     }
 
-    void write_config_data(uint32_t config_data) {
+    //Returns whatever was in the config_data DR
+    uint32_t write_config_data(uint32_t config_data) {
       this->write_IR(IR_CONFIG_DATA);
-      this->write_DR(config_data,32);
+      return this->write_DR(config_data,32);
     }
 
+    //helper function to just read the config data DR
+    uint32_t read_config_data() {
+      return this->write_config_data(0);
+    }
+  
     void write_config_op(ConfigOpValue op) {
       this->write_IR(IR_CONFIG_OP);
       this->write_DR((uint32_t) op, 5);
     }
 
+    //Write to the CGRA
     void write_config(uint32_t addr, uint32_t data) {
       this->write_config_addr(addr);
       this->write_config_data(data);
       this->write_config_op(OP_WRITE);
+    }
+
+    //Read from the CGRA
+    uint32_t read_config(uint32_t addr) {
+      this->write_config_addr(addr);
+      this->write_config_op(OP_READ);
+      return this->read_config_data();
     }
 
 };
