@@ -17,8 +17,7 @@ int main(int argc, char **argv) {
   JTAGDriver* jtag = new JTAGDriver(top);
   
   jtag->reset();
-  jtag->write_config_data(15);
-  cout << P(top->config_data_out) << endl;
+  jtag->write_config_op(JTAGDriver::OP_WRITE);
   cout << P(top->config_data_out) << endl;
 
 } 

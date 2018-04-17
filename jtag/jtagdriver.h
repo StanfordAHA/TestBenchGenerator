@@ -43,15 +43,23 @@ class JTAGDriver {
       top->tdi = 0;
       top->tms = 0;
       top->trst_n =1;
+      top->reset_in =0;
       top->eval();
       top->trst_n = 0;
+      top->reset_in =1;
       top->eval();
+      top->reset_in =0;
       top->trst_n = 1;
       top->eval();
       top->tck = 1;
       top->eval();
       this->step(0);
       this->step(0);
+    }
+
+#define P(val) ((uint64_t) val)
+    void print() {
+      cout << "Wr: " << P(top->write) << endl;     
     }
     void step(bool tms_val, bool tdi_val=0) {
       assert(top->tck==1);
@@ -60,6 +68,7 @@ class JTAGDriver {
       top->tms = (uint8_t)tms_val;
       top->tdi = (uint8_t)tdi_val;
       top->eval(); //negedge
+      print();
       top->tck = 1;
       top->eval(); //posedge
     }
