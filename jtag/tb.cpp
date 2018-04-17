@@ -24,12 +24,12 @@ int main(int argc, char **argv) {
   Verilated::commandArgs(argc, argv);
   Vtop* top = new Vtop;
 
-  JTAGDriver* jtag = new JTAGDriver(top);
+  JTAGDriver jtag(top);
   
-  jtag->reset();
+  jtag.reset();
   
   cout << "Testing Write op" << endl;
-  jtag->write_config_op(JTAGDriver::OP_WRITE);
+  jtag.write_config_op(JTAGDriver::OP_WRITE);
   assert(top->write==1);
   
   cout << "Testing cgra writes" << endl;
@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
   for (auto config : testconfigs) {
     uint32_t addr = config.first;
     uint32_t data = config.second;
-    jtag->write_config(addr,data);
+    jtag.write_config(addr,data);
     assert(top->write==1);
     assert(top->config_addr_out==addr);
     assert(top->config_data_out==data);
@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     uint32_t addr = config.first;
     uint32_t data = config.second;
     top->config_data_in = data;
-    uint32_t data_check = jtag->read_config(addr);
+    uint32_t data_check = jtag.read_config(addr);
     assert(data_check==data);
   }
 
