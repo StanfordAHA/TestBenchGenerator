@@ -11,7 +11,7 @@ parser.add_argument('--output-directory', help="Directory to place verilator out
 
 args = parser.parse_args()
 
-if os.path.isfile(f"./{args.output_directory}/V{args.top_module_name}") and not args.force_rebuild:
+if os.path.isfile(f"./{args.output_directory}/V{args.top_module_name}.mk") and not args.force_rebuild:
     print("Found an existing verilator binary, skipping")
     exit(0)
 else:
