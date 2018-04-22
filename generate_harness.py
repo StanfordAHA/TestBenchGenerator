@@ -12,6 +12,7 @@ parser.add_argument('--max-clock-cycles', help='Max number of clock cyles to run
 parser.add_argument('--wrapper-module-name', help='Name of the wrapper module', default='top')
 parser.add_argument('--chunk-size', help="Size in bits of the data in the input/output files", default=8, type=int)
 parser.add_argument('--output-file-name', help="Name of the generated harness file", default="harness.cpp")
+parser.add_argument('--use-jtag', help="Should this test harness use JTAG to write config", default=False, type=bool)
 
 args = parser.parse_args()
 
@@ -43,11 +44,81 @@ with open(args.pnr_io_collateral, "r") as pnr_collateral:
 #     """
 #     IOs = json.load(IO_file)
 
+
+includes = ""
 file_setup = ""
+jtag_setup = ""
+chip_init = ""
+chip_reset = ""
+run_config = ""
+run_test = ""
+clk_switch = ""
+
 input_body = ""
 output_body = ""
 file_close = ""
 wrapper_name = args.wrapper_module_name
+
+
+includes = f"""
+#include "V{wrapper_name}.h"
+#include "verilated.h"
+#include <iostream>
+#include "stdint.h"
+#include <fstream>
+"""
+
+if (args.use_jtag):
+    includes += '#include "jtagdriver.h"'
+    jtag_setup += f"""
+    JTAGDriver jtag({wrapper_name});
+    """
+
+
+chip_init += f"""
+    {wrapper_name}->clk_in = 0;
+    {wrapper_name}->config_addr_in = 0;
+    {wrapper_name}->config_data_in = 0;
+    {wrapper_name}->reset_in = 0;
+"""
+if (args.use_jtag):
+    chip_init += f"""
+    jtag.init();\n"
+    """
+chip_init += f"""
+    {wrapper_name}->eval();
+"""
+
+chip_reset = f"""
+    {wrapper_name}->reset_in = 1;
+    {wrapper_name}->eval();
+    {wrapper_name}->reset_in = 0;
+    {wrapper_name}->eval();
+    {wrapper_name}->clk_in = 1;
+    {wrapper_name}->eval();
+"""
+if (args.use_jtag):
+    chip_reset += f"""
+    jtag.reset();
+    jtag.tck_bringup();
+    """
+
+
+if (args.use_jtag):
+    run_config += f"""
+        jtag.write_config(config_addr_arr[i],config_data_arr[i]);
+    """
+else :
+    run_config += f"""
+        {wrapper_name}->config_data_in = config_data_arr[i];
+        {wrapper_name}->config_addr_in = config_addr_arr[i];
+        next({wrapper_name}); // clk_in = 1
+    """
+
+if (args.use_jtag):
+    clk_switch += f"""
+    jtag.switch_to_fast();
+    """
 
 # for entry in IOs:
 for module in io_collateral:
@@ -91,11 +162,7 @@ for module in io_collateral:
     """
 
 harness = f"""\
-#include "V{wrapper_name}.h"
-#include "verilated.h"
-#include <iostream>
-#include "stdint.h"
-#include <fstream>
+{includes}
 
 #define next(circuit) \\
     do {{ step((circuit)); step((circuit)); }} while (0)
@@ -124,32 +191,24 @@ int main(int argc, char **argv) {{
     V{wrapper_name}* {wrapper_name} = new V{wrapper_name};
 
     {file_setup}
+    
+    //Intialize jtag driver
+    {jtag_setup}
 
-    {wrapper_name}->clk_in = 0;
-    {wrapper_name}->config_addr_in = 0;
-    {wrapper_name}->config_data_in = 0;
-    {wrapper_name}->reset_in = 0;
-    {wrapper_name}->eval();
-    std::cout << "Initializing the CGRA by holding reset high for " << NUM_RESET_CYCLES << "cycles" << std::endl;
+    //Initialize all inputs to known values
+    {chip_init}
 
-    {wrapper_name}->reset_in = 1;
-    for (int i = 0; i < NUM_RESET_CYCLES; i++) {{
-        // TODO: SR's test bench starts on negative edge
-        next({wrapper_name});
-    }}
-    std::cout << "Done initializing" << std::endl;
-
-    {wrapper_name}->reset_in = 0;
-    step({wrapper_name});  // clk_in = 1
-    next({wrapper_name});  // clk_in = 1
+    //Reset the chip
+    {chip_reset}
+    std::cout << "Done resetting" << std::endl;
 
     std::cout << "Beginning configuration" << std::endl;
     for (int i = 0; i < {len(config_data_arr)}; i++) {{
-        {wrapper_name}->config_data_in = config_data_arr[i];
-        {wrapper_name}->config_addr_in = config_addr_arr[i];
-        next({wrapper_name}); // clk_in = 1
+      {run_config}
     }}
     std::cout << "Done configuring" << std::endl;
+    
+    {clk_switch}
 
     std::cout << "Running test" << std::endl;
     for (int i = 0; i < {args.max_clock_cycles}; i++) {{

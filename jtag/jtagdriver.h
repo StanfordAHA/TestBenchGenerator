@@ -28,10 +28,17 @@ class JTAGDriver {
       OP_GLOBAL_RESET=10,
       OP_WRITE_STALL=11,
       OP_READ_STALL=12,
-      OP_SWITCH_TO_SYS_CLK=15,
+      OP_SWITCH_CLK=15,
       OP_WRITE_RD_DELAY_REG=16,
       OP_READ_RD_DELAY_REG=17
     };
+
+    //This should go in the config_data register
+    enum ClkSwitchValue {
+      CLK_FAST_TO_SLOW=0,
+      CLK_SLOW_TO_FAST=1
+    };
+
   private :
     Vtop* top;
     IRValue cur_ir = IR_EXTEST;
@@ -42,24 +49,29 @@ class JTAGDriver {
   public :
     JTAGDriver(Vtop* top) : top(top) {}
 
-    void reset() {
+    void init() {
       top->tck = 0;
       top->tdi = 0;
       top->tms = 0;
       top->trst_n =1;
-      top->reset_in =0;
+      top->eval();
+    }   
+      
+    void reset() {
       top->eval();
       top->trst_n = 0;
-      top->reset_in =1;
       top->eval();
-      top->reset_in =0;
       top->trst_n = 1;
       top->eval();
+    }
+
+    void tck_bringup() {
       top->tck = 1;
       top->eval();
       this->step(0);
       this->step(0);
     }
+
     int top1(uint32_t val) {
       for (int i=31; i>=0; --i) {
         if ((val>>i)&1) return i;
@@ -143,16 +155,18 @@ class JTAGDriver {
       return ret;
     }
     
+    uint32_t write_TAP(IRValue ir,uint32_t dr,uint32_t bits=32) {
+      this->write_IR(ir);
+      return this->write_DR(dr,bits);
+    }
     //Returns whatever was in the config_addr DR
     uint32_t write_config_addr(uint32_t config_addr) {
-      this->write_IR(IR_CONFIG_ADDRESS);
-      return this->write_DR(config_addr,32);
+      return this->write_TAP(IR_CONFIG_ADDRESS,config_addr);
     }
 
     //Returns whatever was in the config_data DR
     uint32_t write_config_data(uint32_t config_data) {
-      this->write_IR(IR_CONFIG_DATA);
-      return this->write_DR(config_data,32);
+      return this->write_TAP(IR_CONFIG_DATA,config_data);
     }
 
     //helper function to just read the config data DR
@@ -161,8 +175,7 @@ class JTAGDriver {
     }
   
     void write_config_op(ConfigOpValue op) {
-      this->write_IR(IR_CONFIG_OP);
-      this->write_DR((uint32_t) op, 5);
+      this->write_TAP(IR_CONFIG_OP,(uint32_t) op, 5);
     }
 
     //Write to the CGRA
@@ -178,5 +191,12 @@ class JTAGDriver {
       this->write_config_op(OP_READ);
       return this->read_config_data();
     }
+
+    //Change clock to fast
+    void switch_to_fast() {
+      write_config_data(CLK_SLOW_TO_FAST ); 
+      this->write_TAP(IR_CONFIG_OP,OP_SWITCH_CLK, 5);
+    }
+
 
 };
