@@ -24,6 +24,10 @@ else:
 
     def run(command):
         print(f"+ {command}")
-        delegator.run(command)
+        result = delegator.run(command)
+        print(result.out)
+        if result.return_code:
+            print(result.err)
+            raise RuntimeError(f"ERROR - running command {command}")
     run(f"verilator{verilator_flags} -Wno-fatal --cc {args.top_module_name} --exe {args.harness} --top-module {args.top_module_name} ")
 

@@ -124,7 +124,7 @@ else :
 
 if (args.use_jtag and args.verify_config):
     read_config += f"""
-        uint32_t read_data = jtag.read_config(config_addr_arr[i])
+        uint32_t read_data = jtag.read_config(config_addr_arr[i]);
         assert(read_data == config_data_arr[i]);
     """
 
