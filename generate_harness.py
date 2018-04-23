@@ -13,6 +13,7 @@ parser.add_argument('--wrapper-module-name', help='Name of the wrapper module', 
 parser.add_argument('--chunk-size', help="Size in bits of the data in the input/output files", default=8, type=int)
 parser.add_argument('--output-file-name', help="Name of the generated harness file", default="harness.cpp")
 parser.add_argument('--use-jtag', help="Should this test harness use JTAG to write config", default=False, action="store_true")
+parser.add_argument('--verify-config', help="Should this test harness read back all the config after writing", default=False, action="store_true")
 
 args = parser.parse_args()
 
@@ -51,6 +52,7 @@ jtag_setup = ""
 chip_init = ""
 chip_reset = ""
 run_config = ""
+read_config = ""
 run_test = ""
 clk_switch = ""
 
@@ -118,6 +120,14 @@ else :
         {wrapper_name}->config_addr_in = config_addr_arr[i];
         next({wrapper_name}); // clk_in = 1
     """
+
+
+if (args.use_jtag and args.verify_config):
+    read_config += f"""
+        uint32_t read_data = jtag.read_config(config_addr_arr[i])
+        assert(read_data == config_data_arr[i]);
+    """
+
 
 if (args.use_jtag):
     clk_switch += f"""
@@ -210,6 +220,12 @@ int main(int argc, char **argv) {{
     for (int i = 0; i < {len(config_data_arr)}; i++) {{
       {run_config}
     }}
+    
+    std::cout << "reading configuration" << std::endl;
+    for (int i = 0; i < {len(config_data_arr)}; i++) {{
+      {read_config}
+    }}
+    
     std::cout << "Done configuring" << std::endl;
     
     {clk_switch}
