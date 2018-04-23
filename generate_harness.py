@@ -12,7 +12,7 @@ parser.add_argument('--max-clock-cycles', help='Max number of clock cyles to run
 parser.add_argument('--wrapper-module-name', help='Name of the wrapper module', default='top')
 parser.add_argument('--chunk-size', help="Size in bits of the data in the input/output files", default=8, type=int)
 parser.add_argument('--output-file-name', help="Name of the generated harness file", default="harness.cpp")
-parser.add_argument('--use-jtag', help="Should this test harness use JTAG to write config", default=False, type=bool, action="store_true")
+parser.add_argument('--use-jtag', help="Should this test harness use JTAG to write config", default=False, action="store_true")
 
 args = parser.parse_args()
 
