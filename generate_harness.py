@@ -83,7 +83,7 @@ chip_init += f"""
 """
 if (args.use_jtag):
     chip_init += f"""
-    jtag.init();\n"
+    jtag.init();
     """
 chip_init += f"""
     {wrapper_name}->eval();
