@@ -77,13 +77,17 @@ if (args.use_jtag):
 
 chip_init += f"""
     {wrapper_name}->clk_in = 0;
-    {wrapper_name}->config_addr_in = 0;
-    {wrapper_name}->config_data_in = 0;
     {wrapper_name}->reset_in = 0;
 """
 if (args.use_jtag):
     chip_init += f"""
     jtag.init();
+    """
+else:
+
+    chip_init += f"""
+        {wrapper_name}->config_addr_in = 0;
+        {wrapper_name}->config_data_in = 0;
     """
 chip_init += f"""
     {wrapper_name}->eval();
