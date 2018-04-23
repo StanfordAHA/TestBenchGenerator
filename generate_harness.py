@@ -132,6 +132,11 @@ if (args.use_jtag and args.verify_config):
 if (args.use_jtag):
     clk_switch += f"""
     jtag.switch_to_fast();
+    next({wrapper_name})
+    next({wrapper_name})
+    next({wrapper_name})
+    next({wrapper_name})
+    next({wrapper_name})
     """
 
 # for entry in IOs:
