@@ -48,6 +48,7 @@ class JTAGDriver {
     uint32_t cur_config_data_bits = 0;
     //ConfigOpValue cur_config_op = OP_NOP;
     uint32_t cur_config_addr = 0;
+    bool step_fast_clock = false;
   public :
     JTAGDriver(Vtop* top) : top(top) {}
     JTAGDriver(Vtop* top, VerilatedVcdC* tfp, uint32_t* time_step) : top(top), tfp(tfp), time_step(time_step) {}
@@ -104,18 +105,53 @@ class JTAGDriver {
       top->tck = 0;
       top->tms = (uint8_t)tms_val;
       top->tdi = (uint8_t)tdi_val;
-      top->eval(); //negedge
-      if (tfp != NULL) {
-        tfp->dump(*time_step);
-        *time_step = *time_step + 1;
+      if (step_fast_clock) {
+          assert(top->clk_in==1);
+          for (int i = 0; i < 3; i++) {
+              top->clk_in = 0;
+              top->eval();
+              if (tfp != NULL) {
+                tfp->dump(*time_step);
+                *time_step = *time_step + 1;
+              }
+              top->clk_in = 1;
+              top->eval();
+              if (tfp != NULL) {
+                tfp->dump(*time_step);
+                *time_step = *time_step + 1;
+              }
+          }
+      } else {
+          top->eval(); //negedge
+          if (tfp != NULL) {
+            tfp->dump(*time_step);
+            *time_step = *time_step + 6;
+          }
       }
       print();
       uint8_t tdo = top->tdo;
       top->tck = 1;
-      top->eval(); //posedge
-      if (tfp != NULL) {
-        tfp->dump(*time_step);
-        *time_step = *time_step + 1;
+      if (step_fast_clock) {
+          for (int i = 0; i < 3; i++) {
+              top->clk_in = 0;
+              top->eval();
+              if (tfp != NULL) {
+                tfp->dump(*time_step);
+                *time_step = *time_step + 1;
+              }
+              top->clk_in = 1;
+              top->eval();
+              if (tfp != NULL) {
+                tfp->dump(*time_step);
+                *time_step = *time_step + 1;
+              }
+          }
+      } else {
+          top->eval(); //posedge
+          if (tfp != NULL) {
+            tfp->dump(*time_step);
+            *time_step = *time_step + 6;
+          }
       }
       return tdo;
     }
@@ -217,8 +253,10 @@ class JTAGDriver {
       this->write_TAP(IR_CONFIG_OP,OP_WRITE_STALL, 5);
     }
     void unstall() {
+      step_fast_clock = true;
       write_config_data(0x0); 
       this->write_TAP(IR_CONFIG_OP,OP_WRITE_STALL, 5);
+      step_fast_clock = false;
     }
 
 
