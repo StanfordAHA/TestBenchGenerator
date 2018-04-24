@@ -197,7 +197,7 @@ class JTAGDriver {
       write_config_data(CLK_SLOW_TO_FAST ); 
       this->write_TAP(IR_CONFIG_OP,OP_SWITCH_CLK, 5);
       for (uint32_t i=0; i<40; ++i) {
-        this->step();
+        this->step(0);
       }
     }
 
