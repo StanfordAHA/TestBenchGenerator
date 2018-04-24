@@ -41,6 +41,8 @@ class JTAGDriver {
 
   private :
     Vtop* top;
+    uint32_t time_step;
+    VerilatedVcdC* tfp = NULL;
     IRValue cur_ir = IR_EXTEST;
     uint32_t cur_config_data = 0;
     uint32_t cur_config_data_bits = 0;
@@ -48,6 +50,7 @@ class JTAGDriver {
     uint32_t cur_config_addr = 0;
   public :
     JTAGDriver(Vtop* top) : top(top) {}
+    JTAGDriver(Vtop* top, VerilatedVcdC* tfp, int* time_step) : top(top), tfp(tfp), time_step(time_step) {}
 
     void init() {
       top->tck = 0;
@@ -102,10 +105,18 @@ class JTAGDriver {
       top->tms = (uint8_t)tms_val;
       top->tdi = (uint8_t)tdi_val;
       top->eval(); //negedge
+      if (tfp != NULL) {
+        tfp->dump(time_step);
+        time_step++;
+      }
       print();
       uint8_t tdo = top->tdo;
       top->tck = 1;
       top->eval(); //posedge
+      if (tfp != NULL) {
+        tfp->dump(time_step);
+        time_step++;
+      }
       return tdo;
     }
 
@@ -200,6 +211,4 @@ class JTAGDriver {
         this->step(0);
       }
     }
-
-
 };

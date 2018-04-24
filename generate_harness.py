@@ -14,6 +14,8 @@ parser.add_argument('--chunk-size', help="Size in bits of the data in the input/
 parser.add_argument('--output-file-name', help="Name of the generated harness file", default="harness.cpp")
 parser.add_argument('--use-jtag', help="Should this test harness use JTAG to write config", default=False, action="store_true")
 parser.add_argument('--verify-config', help="Should this test harness read back all the config after writing", default=False, action="store_true")
+parser.add_argument('--trace', action="store_true", help="Dump a .vcd using verilator")
+parser.add_argument('--trace-file-name', default="top_tb.vcd")
 
 args = parser.parse_args()
 
@@ -71,11 +73,38 @@ includes = f"""
 #include "printf.h"
 """
 
-if (args.use_jtag):
-    includes += '#include "jtagdriver.h"'
-    jtag_setup += f"""
-    JTAGDriver jtag({wrapper_name});
+if args.trace:
+    step_command = f"step({wrapper_name}, time_step);"
+else:
+    step_command = f"step({wrapper_name});"
+
+if args.trace:
+    next_command = f"next({wrapper_name}, time_step);"
+else:
+    next_command = f"next({wrapper_name});"
+
+trace_setup = ""
+if args.trace:
+    includes += "#include \"verilated_vcd_c.h\"\n"
+    trace_setup += f"""
+        Verilated::traceEverOn(true);
+        VerilatedVcdC* tfp = new VerilatedVcdC;
+        top->trace(tfp, 99); // What is 99?  I don't know!  FIXME 
+        tfp->open(\"{args.trace_file_name}\");
+        uint32_t time_step = 0;
     """
+    file_close += "tfp->close();\n"
+
+if (args.use_jtag):
+    includes += '#include "jtagdriver.h"\n'
+    if args.trace:
+        jtag_setup += f"""
+            JTAGDriver jtag({wrapper_name}, tfp, &time_step);
+        """
+    else:
+        jtag_setup += f"""
+            JTAGDriver jtag({wrapper_name});
+        """
 
 
 chip_init += f"""
@@ -102,6 +131,7 @@ chip_reset = f"""
     {wrapper_name}->reset_in = 0;
     {wrapper_name}->eval();
 """
+
 if (args.use_jtag):
     chip_reset += f"""
     jtag.reset();
@@ -122,7 +152,7 @@ else :
     run_config += f"""
         {wrapper_name}->config_data_in = config_data_arr[i];
         {wrapper_name}->config_addr_in = config_addr_arr[i];
-        next({wrapper_name}); // clk_in = 1
+        {next_command}
     """
 
 
@@ -141,11 +171,9 @@ if (args.use_jtag):
     jtag.switch_to_fast();
     {wrapper_name}->clk_in = 1;
     {wrapper_name}->eval();
-    next({wrapper_name});
-    next({wrapper_name});
-    next({wrapper_name});
-    next({wrapper_name});
-    next({wrapper_name});
+    for (int i = 0; i < 5; i++) {
+        {next_command}
+    }
     """
 
 # for entry in IOs:
@@ -189,11 +217,36 @@ for module in io_collateral:
         {module}_file.close();
     """
 
+step_time_step_arg = ""
+step_trace_body = ""
+if args.trace:
+    step_time_step_arg = ", uint32_t &time_step"
+    step_trace_body = f"""
+        tfp->dump(time_step);
+        time_step++;
+    """
+
+step_def = f"""\
+void step(V{wrapper_name} *{wrapper_name}{step_time_step_arg}) {{
+    {wrapper_name}->clk_in ^= 1;
+    {wrapper_name}->eval();
+    {step_trace_body}
+}}
+"""
+
+next_step_arg = ""
+if args.trace:
+    next_step_arg = ", (time_step)"
+
+next_def = f"""\
+#define next(circuit{step_time_step_arg}) \\
+        do {{ step((circuit){next_step_arg}); step((circuit){next_step_arg}); }} while (0)
+"""
+
 harness = f"""\
 {includes}
 
-#define next(circuit) \\
-    do {{ step((circuit)); step((circuit)); }} while (0)
+{next_def}
 
 static const uint32_t config_data_arr[] = {config_data_arr_str};
 static const uint32_t config_addr_arr[] = {config_addr_arr_str};
@@ -201,10 +254,7 @@ static const uint32_t config_addr_arr[] = {config_addr_arr_str};
 // TODO: How many cycles do we actually need to hold reset down?
 static const uint32_t NUM_RESET_CYCLES = 5;
 
-void step(V{wrapper_name} *{wrapper_name}) {{
-    {wrapper_name}->clk_in ^= 1;
-    {wrapper_name}->eval();
-}}
+{step_def}
 
 uint8_t get_bit(uint8_t bit_position, uint{args.chunk_size}_t bit_vector) {{
     return (bit_vector >> bit_position) & 1;
@@ -217,6 +267,7 @@ void set_bit(uint8_t value, uint8_t bit_position, uint{args.chunk_size}_t &bit_v
 int main(int argc, char **argv) {{
     Verilated::commandArgs(argc, argv);
     V{wrapper_name}* {wrapper_name} = new V{wrapper_name};
+    {trace_setup}
 
     {file_setup}
     
@@ -253,9 +304,9 @@ int main(int argc, char **argv) {{
     std::cout << "Running test" << std::endl;
     for (int i = 0; i < {args.max_clock_cycles}; i++) {{
         {input_body}
-        step({wrapper_name}); // clk_in = 0
+        {step_command}  // clk_in = 0
         {output_body}
-        step({wrapper_name}); // clk_in = 1
+        {step_command}  // clk_in = 1
         if (i % 10 == 0) std::cout << "Cycle: " << i << std::endl;
     }}
     std::cout << "Done testing" << std::endl;
