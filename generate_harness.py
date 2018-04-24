@@ -141,6 +141,11 @@ if (args.use_jtag):
     jtag.switch_to_fast();
     {wrapper_name}->clk_in = 1;
     {wrapper_name}->eval();
+    next({wrapper_name})
+    next({wrapper_name})
+    next({wrapper_name})
+    next({wrapper_name})
+    next({wrapper_name})
     """
 
 # for entry in IOs:
