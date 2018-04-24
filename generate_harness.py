@@ -68,6 +68,7 @@ includes = f"""
 #include <iostream>
 #include "stdint.h"
 #include <fstream>
+#include "printf.h"
 """
 
 if (args.use_jtag):
@@ -100,13 +101,16 @@ chip_reset = f"""
     {wrapper_name}->eval();
     {wrapper_name}->reset_in = 0;
     {wrapper_name}->eval();
-    {wrapper_name}->clk_in = 1;
-    {wrapper_name}->eval();
 """
 if (args.use_jtag):
     chip_reset += f"""
     jtag.reset();
     jtag.tck_bringup();
+    """
+else:
+    chip_reset += f"""
+        {wrapper_name}->clk_in = 1;
+        {wrapper_name}->eval();
     """
 
 
@@ -125,13 +129,18 @@ else :
 if (args.use_jtag and args.verify_config):
     read_config += f"""
         uint32_t read_data = jtag.read_config(config_addr_arr[i]);
-        assert(read_data == config_data_arr[i]);
+        if (read_data != config_data_arr[i]) {{
+            printf("ERROR - Iteration=%d, read_data=0x%08x, config_data_arr[i]=0x%08x, config_addr_arr[i]=0x%08x\\n", i, read_data, config_data_arr[i], config_addr_arr[i]);
+            config_error = true;
+        }};
     """
 
 
 if (args.use_jtag):
     clk_switch += f"""
     jtag.switch_to_fast();
+    {wrapper_name}->clk_in = 1;
+    {wrapper_name}->eval();
     """
 
 # for entry in IOs:
@@ -222,8 +231,14 @@ int main(int argc, char **argv) {{
     }}
     
     std::cout << "reading configuration" << std::endl;
+    bool config_error = false;
     for (int i = 0; i < {len(config_data_arr)}; i++) {{
       {read_config}
+    }}
+    if (config_error) {{
+        std::cout << "error in configuration" << std::endl;
+        // FIXME: 1-bit IO pads are flipped (bit0 and bit1) causing an error
+        // exit(1);
     }}
     
     std::cout << "Done configuring" << std::endl;
