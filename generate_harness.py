@@ -74,12 +74,12 @@ includes = f"""
 """
 
 if args.trace:
-    step_command = f"step({wrapper_name}, time_step);"
+    step_command = f"step({wrapper_name}, time_step, tfp);"
 else:
     step_command = f"step({wrapper_name});"
 
 if args.trace:
-    next_command = f"next({wrapper_name}, time_step);"
+    next_command = f"next({wrapper_name}, time_step, tfp);"
 else:
     next_command = f"next({wrapper_name});"
 
@@ -171,9 +171,9 @@ if (args.use_jtag):
     jtag.switch_to_fast();
     {wrapper_name}->clk_in = 1;
     {wrapper_name}->eval();
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++) {{
         {next_command}
-    }
+    }}
     """
 
 # for entry in IOs:
@@ -217,30 +217,32 @@ for module in io_collateral:
         {module}_file.close();
     """
 
-step_time_step_arg = ""
+step_trace_args = ""
 step_trace_body = ""
 if args.trace:
-    step_time_step_arg = ", uint32_t &time_step"
+    step_trace_args = ", uint32_t &time_step, VerilatedVcdC* tfp"
     step_trace_body = f"""
         tfp->dump(time_step);
         time_step++;
     """
 
 step_def = f"""\
-void step(V{wrapper_name} *{wrapper_name}{step_time_step_arg}) {{
+void step(V{wrapper_name} *{wrapper_name}{step_trace_args}) {{
     {wrapper_name}->clk_in ^= 1;
     {wrapper_name}->eval();
     {step_trace_body}
 }}
 """
 
-next_step_arg = ""
+next_step_args = ""
+next_step_params = ""
 if args.trace:
-    next_step_arg = ", (time_step)"
+    next_step_args = ", (time_step), (tfp)"
+    next_step_params = ", time_step, tfp"
 
 next_def = f"""\
-#define next(circuit{step_time_step_arg}) \\
-        do {{ step((circuit){next_step_arg}); step((circuit){next_step_arg}); }} while (0)
+#define next(circuit{next_step_params}) \\
+        do {{ step((circuit){next_step_args}); step((circuit){next_step_args}); }} while (0)
 """
 
 harness = f"""\
