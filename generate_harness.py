@@ -57,6 +57,9 @@ run_config = ""
 read_config = ""
 run_test = ""
 clk_switch = ""
+stall = ""
+unstall = ""
+
 
 input_body = ""
 output_body = ""
@@ -143,6 +146,15 @@ else:
         {wrapper_name}->eval();
     """
 
+if (args.use_jtag):
+    stall += f"""
+        jtag.stall();
+    """
+
+if (args.use_jtag):
+    unstall += f"""
+        jtag.unstall();
+    """
 
 if (args.use_jtag):
     run_config += f"""
@@ -283,6 +295,8 @@ int main(int argc, char **argv) {{
     {chip_reset}
     std::cout << "Done resetting" << std::endl;
 
+    {stall}
+
     std::cout << "Beginning configuration" << std::endl;
     for (int i = 0; i < {len(config_data_arr)}; i++) {{
       {run_config}
@@ -303,6 +317,8 @@ int main(int argc, char **argv) {{
     
     {clk_switch}
 
+    {unstall}
+    
     std::cout << "Running test" << std::endl;
     for (int i = 0; i < {args.max_clock_cycles}; i++) {{
         {input_body}

@@ -211,4 +211,15 @@ class JTAGDriver {
         this->step(0);
       }
     }
+    
+    void stall() {
+      write_config_data(0xF); 
+      this->write_TAP(IR_CONFIG_OP,OP_WRITE_STALL, 5);
+    }
+    void unstall() {
+      write_config_data(0x0); 
+      this->write_TAP(IR_CONFIG_OP,OP_WRITE_STALL, 5);
+    }
+
+
 };
