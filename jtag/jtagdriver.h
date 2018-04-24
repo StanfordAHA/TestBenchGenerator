@@ -107,7 +107,7 @@ class JTAGDriver {
       top->eval(); //negedge
       if (tfp != NULL) {
         tfp->dump(*time_step);
-        *time_step++;
+        *time_step = *time_step + 1;
       }
       print();
       uint8_t tdo = top->tdo;
@@ -115,7 +115,7 @@ class JTAGDriver {
       top->eval(); //posedge
       if (tfp != NULL) {
         tfp->dump(*time_step);
-        *time_step++;
+        *time_step = *time_step + 1;
       }
       return tdo;
     }
