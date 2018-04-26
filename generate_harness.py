@@ -54,7 +54,7 @@ jtag_setup = ""
 chip_init = ""
 chip_reset = ""
 run_config = ""
-read_config = ""
+verify_config = ""
 run_test = ""
 clk_switch = ""
 stall = ""
@@ -169,12 +169,21 @@ else :
 
 
 if (args.use_jtag and args.verify_config):
-    read_config += f"""
-        uint32_t read_data = jtag.read_config(config_addr_arr[i]);
-        if (read_data != config_data_arr[i]) {{
-            printf("ERROR - Iteration=%d, read_data=0x%08x, config_data_arr[i]=0x%08x, config_addr_arr[i]=0x%08x\\n", i, read_data, config_data_arr[i], config_addr_arr[i]);
-            config_error = true;
-        }};
+    verify_config += f"""
+        std::cout << "reading configuration" << std::endl;
+        bool config_error = false;
+        for (int i = 0; i < {len(config_data_arr)}; i++) {{
+            uint32_t read_data = jtag.read_config(config_addr_arr[i]);
+            if (read_data != config_data_arr[i]) {{
+                printf("ERROR - Iteration=%d, read_data=0x%08x, config_data_arr[i]=0x%08x, config_addr_arr[i]=0x%08x\\n", i, read_data, config_data_arr[i], config_addr_arr[i]);
+                config_error = true;
+            }};
+        }}
+        if (config_error) {{
+            std::cout << "error in configuration" << std::endl;
+            // FIXME: 1-bit IO pads are flipped (bit0 and bit1) causing an error
+            // exit(1);
+        }}
     """
 
 
@@ -302,16 +311,7 @@ int main(int argc, char **argv) {{
       {run_config}
     }}
     
-    std::cout << "reading configuration" << std::endl;
-    bool config_error = false;
-    for (int i = 0; i < {len(config_data_arr)}; i++) {{
-      {read_config}
-    }}
-    if (config_error) {{
-        std::cout << "error in configuration" << std::endl;
-        // FIXME: 1-bit IO pads are flipped (bit0 and bit1) causing an error
-        // exit(1);
-    }}
+    {verify_config}
     
     std::cout << "Done configuring" << std::endl;
     

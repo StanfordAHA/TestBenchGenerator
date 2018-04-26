@@ -42,7 +42,9 @@ class JTAGDriver {
   private :
     Vtop* top;
     uint32_t *time_step;
+#ifdef TRACE
     VerilatedVcdC* tfp = NULL;
+#endif
     IRValue cur_ir = IR_EXTEST;
     uint32_t cur_config_data = 0;
     uint32_t cur_config_data_bits = 0;
@@ -51,7 +53,9 @@ class JTAGDriver {
     bool step_fast_clock = false;
   public :
     JTAGDriver(Vtop* top) : top(top) {}
+#ifdef TRACE
     JTAGDriver(Vtop* top, VerilatedVcdC* tfp, uint32_t* time_step) : top(top), tfp(tfp), time_step(time_step) {}
+#endif
 
     void init() {
       top->tck = 0;
@@ -110,23 +114,29 @@ class JTAGDriver {
           for (int i = 0; i < 3; i++) {
               top->clk_in = 0;
               top->eval();
+#ifdef TRACE
               if (tfp != NULL) {
                 tfp->dump(*time_step);
                 *time_step = *time_step + 1;
               }
+#endif
               top->clk_in = 1;
               top->eval();
+#ifdef TRACE
               if (tfp != NULL) {
                 tfp->dump(*time_step);
                 *time_step = *time_step + 1;
               }
+#endif
           }
       } else {
           top->eval(); //negedge
+#ifdef TRACE
           if (tfp != NULL) {
             tfp->dump(*time_step);
             *time_step = *time_step + 6;
           }
+#endif
       }
       print();
       uint8_t tdo = top->tdo;
@@ -135,23 +145,29 @@ class JTAGDriver {
           for (int i = 0; i < 3; i++) {
               top->clk_in = 0;
               top->eval();
+#ifdef TRACE
               if (tfp != NULL) {
                 tfp->dump(*time_step);
                 *time_step = *time_step + 1;
               }
+#endif
               top->clk_in = 1;
               top->eval();
+#ifdef TRACE
               if (tfp != NULL) {
                 tfp->dump(*time_step);
                 *time_step = *time_step + 1;
               }
+#endif
           }
       } else {
           top->eval(); //posedge
+#ifdef TRACE
           if (tfp != NULL) {
             tfp->dump(*time_step);
             *time_step = *time_step + 6;
           }
+#endif
       }
       return tdo;
     }
