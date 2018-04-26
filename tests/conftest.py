@@ -28,8 +28,5 @@ def files_to_copy(request):
 def setup(rtl_directory, files_to_copy):
     shutil.copy("../jtag/jtagdriver.h", "build/")
 
-    util.run("cc conv_1_2_convert.c -o conv_1_2_convert", cwd="../bin")
-    util.run("cc crop31.c -o crop31", cwd="../bin")
-
     for file in files_to_copy:
         shutil.copy(file,  f"{rtl_directory}/")

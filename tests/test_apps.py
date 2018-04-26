@@ -21,7 +21,7 @@ def test_app(app, trace, force_verilate, rtl_directory):
                 --pnr-io-collateral {test}/{test}.io.json      \\
                 --bitstream {test}/{test}_pnr_bitstream        \\
                 --use-jtag       \\
-		--verify-config                           \
+		--verify-config                           \\
                 --max-clock-cycles 5000000                \\
                 --output-file-name harness.cpp
         """)
