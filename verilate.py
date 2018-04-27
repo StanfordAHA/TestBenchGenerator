@@ -24,7 +24,10 @@ else:
         verilator_flags += " --trace"
 
     verilator_flags += f" -Mdir {args.output_directory}"
-    verilator_flags += f" -CFLAGS -std=c++11"
+    if args.trace:
+        verilator_flags += f" -CFLAGS '-std=c++11 -DTRACE'"
+    else:
+        verilator_flags += f" -CFLAGS -std=c++11"
 
     def run(command):
         print(f"+ {command}")
