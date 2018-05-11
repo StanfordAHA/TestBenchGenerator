@@ -28,38 +28,58 @@ class JTAGDriver {
       OP_GLOBAL_RESET=10,
       OP_WRITE_STALL=11,
       OP_READ_STALL=12,
-      OP_SWITCH_TO_SYS_CLK=15,
+      OP_SWITCH_CLK=15,
       OP_WRITE_RD_DELAY_REG=16,
       OP_READ_RD_DELAY_REG=17
     };
+
+    //This should go in the config_data register
+    enum ClkSwitchValue {
+      CLK_FAST_TO_SLOW=0,
+      CLK_SLOW_TO_FAST=1
+    };
+
   private :
     Vtop* top;
+    uint32_t *time_step;
+#ifdef TRACE
+    VerilatedVcdC* tfp = NULL;
+#endif
     IRValue cur_ir = IR_EXTEST;
     uint32_t cur_config_data = 0;
     uint32_t cur_config_data_bits = 0;
     //ConfigOpValue cur_config_op = OP_NOP;
     uint32_t cur_config_addr = 0;
+    bool step_fast_clock = false;
   public :
     JTAGDriver(Vtop* top) : top(top) {}
+#ifdef TRACE
+    JTAGDriver(Vtop* top, VerilatedVcdC* tfp, uint32_t* time_step) : top(top), tfp(tfp), time_step(time_step) {}
+#endif
 
-    void reset() {
+    void init() {
       top->tck = 0;
       top->tdi = 0;
       top->tms = 0;
       top->trst_n =1;
-      top->reset_in =0;
+      top->eval();
+    }   
+      
+    void reset() {
       top->eval();
       top->trst_n = 0;
-      top->reset_in =1;
       top->eval();
-      top->reset_in =0;
       top->trst_n = 1;
       top->eval();
+    }
+
+    void tck_bringup() {
       top->tck = 1;
       top->eval();
       this->step(0);
       this->step(0);
     }
+
     int top1(uint32_t val) {
       for (int i=31; i>=0; --i) {
         if ((val>>i)&1) return i;
@@ -89,11 +109,66 @@ class JTAGDriver {
       top->tck = 0;
       top->tms = (uint8_t)tms_val;
       top->tdi = (uint8_t)tdi_val;
-      top->eval(); //negedge
+      if (step_fast_clock) {
+          assert(top->clk_in==1);
+          for (int i = 0; i < 3; i++) {
+              top->clk_in = 0;
+              top->eval();
+#ifdef TRACE
+              if (tfp != NULL) {
+                tfp->dump(*time_step);
+                *time_step = *time_step + 1;
+              }
+#endif
+              top->clk_in = 1;
+              top->eval();
+#ifdef TRACE
+              if (tfp != NULL) {
+                tfp->dump(*time_step);
+                *time_step = *time_step + 1;
+              }
+#endif
+          }
+      } else {
+          top->eval(); //negedge
+#ifdef TRACE
+          if (tfp != NULL) {
+            tfp->dump(*time_step);
+            *time_step = *time_step + 6;
+          }
+#endif
+      }
       print();
       uint8_t tdo = top->tdo;
       top->tck = 1;
-      top->eval(); //posedge
+      if (step_fast_clock) {
+          for (int i = 0; i < 3; i++) {
+              top->clk_in = 0;
+              top->eval();
+#ifdef TRACE
+              if (tfp != NULL) {
+                tfp->dump(*time_step);
+                *time_step = *time_step + 1;
+              }
+#endif
+              top->clk_in = 1;
+              top->eval();
+#ifdef TRACE
+              if (tfp != NULL) {
+                tfp->dump(*time_step);
+                *time_step = *time_step + 1;
+              }
+#endif
+          }
+      } else {
+          top->eval(); //posedge
+#ifdef TRACE
+          if (tfp != NULL) {
+            tfp->dump(*time_step);
+            *time_step = *time_step + 6;
+          }
+#endif
+      }
       return tdo;
     }
 
@@ -143,16 +218,18 @@ class JTAGDriver {
       return ret;
     }
     
+    uint32_t write_TAP(IRValue ir,uint32_t dr,uint32_t bits=32) {
+      this->write_IR(ir);
+      return this->write_DR(dr,bits);
+    }
     //Returns whatever was in the config_addr DR
     uint32_t write_config_addr(uint32_t config_addr) {
-      this->write_IR(IR_CONFIG_ADDRESS);
-      return this->write_DR(config_addr,32);
+      return this->write_TAP(IR_CONFIG_ADDRESS,config_addr);
     }
 
     //Returns whatever was in the config_data DR
     uint32_t write_config_data(uint32_t config_data) {
-      this->write_IR(IR_CONFIG_DATA);
-      return this->write_DR(config_data,32);
+      return this->write_TAP(IR_CONFIG_DATA,config_data);
     }
 
     //helper function to just read the config data DR
@@ -161,8 +238,7 @@ class JTAGDriver {
     }
   
     void write_config_op(ConfigOpValue op) {
-      this->write_IR(IR_CONFIG_OP);
-      this->write_DR((uint32_t) op, 5);
+      this->write_TAP(IR_CONFIG_OP,(uint32_t) op, 5);
     }
 
     //Write to the CGRA
@@ -178,5 +254,26 @@ class JTAGDriver {
       this->write_config_op(OP_READ);
       return this->read_config_data();
     }
+
+    //Change clock to fast
+    void switch_to_fast() {
+      write_config_data(CLK_SLOW_TO_FAST ); 
+      this->write_TAP(IR_CONFIG_OP,OP_SWITCH_CLK, 5);
+      for (uint32_t i=0; i<40; ++i) {
+        this->step(0);
+      }
+    }
+    
+    void stall() {
+      write_config_data(0xF); 
+      this->write_TAP(IR_CONFIG_OP,OP_WRITE_STALL, 5);
+    }
+    void unstall() {
+      step_fast_clock = true;
+      write_config_data(0x0); 
+      this->write_TAP(IR_CONFIG_OP,OP_WRITE_STALL, 5);
+      step_fast_clock = false;
+    }
+
 
 };

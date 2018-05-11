@@ -12,6 +12,10 @@ parser.add_argument('--max-clock-cycles', help='Max number of clock cyles to run
 parser.add_argument('--wrapper-module-name', help='Name of the wrapper module', default='top')
 parser.add_argument('--chunk-size', help="Size in bits of the data in the input/output files", default=8, type=int)
 parser.add_argument('--output-file-name', help="Name of the generated harness file", default="harness.cpp")
+parser.add_argument('--use-jtag', help="Should this test harness use JTAG to write config", default=False, action="store_true")
+parser.add_argument('--verify-config', help="Should this test harness read back all the config after writing", default=False, action="store_true")
+parser.add_argument('--trace', action="store_true", help="Dump a .vcd using verilator")
+parser.add_argument('--trace-file-name', default="top_tb.vcd")
 
 args = parser.parse_args()
 
@@ -43,11 +47,155 @@ with open(args.pnr_io_collateral, "r") as pnr_collateral:
 #     """
 #     IOs = json.load(IO_file)
 
+
+includes = ""
 file_setup = ""
+jtag_setup = ""
+chip_init = ""
+chip_reset = ""
+run_config = ""
+verify_config = ""
+run_test = ""
+clk_switch = ""
+stall = ""
+unstall = ""
+
+
 input_body = ""
 output_body = ""
 file_close = ""
 wrapper_name = args.wrapper_module_name
+
+
+includes = f"""
+#include "V{wrapper_name}.h"
+#include "verilated.h"
+#include <iostream>
+#include "stdint.h"
+#include <fstream>
+#include "printf.h"
+"""
+
+if args.trace:
+    step_command = f"step({wrapper_name}, time_step, tfp);"
+else:
+    step_command = f"step({wrapper_name});"
+
+if args.trace:
+    next_command = f"next({wrapper_name}, time_step, tfp);"
+else:
+    next_command = f"next({wrapper_name});"
+
+trace_setup = ""
+if args.trace:
+    includes += "#include \"verilated_vcd_c.h\"\n"
+    trace_setup += f"""
+        Verilated::traceEverOn(true);
+        VerilatedVcdC* tfp = new VerilatedVcdC;
+        top->trace(tfp, 99); // What is 99?  I don't know!  FIXME 
+        tfp->open(\"{args.trace_file_name}\");
+        uint32_t time_step = 0;
+    """
+    file_close += "tfp->close();\n"
+
+if (args.use_jtag):
+    includes += '#include "jtagdriver.h"\n'
+    if args.trace:
+        jtag_setup += f"""
+            JTAGDriver jtag({wrapper_name}, tfp, &time_step);
+        """
+    else:
+        jtag_setup += f"""
+            JTAGDriver jtag({wrapper_name});
+        """
+
+
+chip_init += f"""
+    {wrapper_name}->clk_in = 0;
+    {wrapper_name}->reset_in = 0;
+"""
+if (args.use_jtag):
+    chip_init += f"""
+    jtag.init();
+    """
+else:
+
+    chip_init += f"""
+        {wrapper_name}->config_addr_in = 0;
+        {wrapper_name}->config_data_in = 0;
+    """
+chip_init += f"""
+    {wrapper_name}->eval();
+"""
+
+chip_reset = f"""
+    {wrapper_name}->reset_in = 1;
+    {wrapper_name}->eval();
+    {wrapper_name}->reset_in = 0;
+    {wrapper_name}->eval();
+"""
+
+if (args.use_jtag):
+    chip_reset += f"""
+    jtag.reset();
+    jtag.tck_bringup();
+    """
+else:
+    chip_reset += f"""
+        {wrapper_name}->clk_in = 1;
+        {wrapper_name}->eval();
+    """
+
+if (args.use_jtag):
+    stall += f"""
+        jtag.stall();
+    """
+
+if (args.use_jtag):
+    unstall += f"""
+        jtag.unstall();
+    """
+
+if (args.use_jtag):
+    run_config += f"""
+        jtag.write_config(config_addr_arr[i],config_data_arr[i]);
+    """
+else :
+    run_config += f"""
+        {wrapper_name}->config_data_in = config_data_arr[i];
+        {wrapper_name}->config_addr_in = config_addr_arr[i];
+        {next_command}
+    """
+
+
+if (args.use_jtag and args.verify_config):
+    verify_config += f"""
+        std::cout << "reading configuration" << std::endl;
+        bool config_error = false;
+        for (int i = 0; i < {len(config_data_arr)}; i++) {{
+            uint32_t read_data = jtag.read_config(config_addr_arr[i]);
+            if (read_data != config_data_arr[i]) {{
+                printf("ERROR - Iteration=%d, read_data=0x%08x, config_data_arr[i]=0x%08x, config_addr_arr[i]=0x%08x\\n", i, read_data, config_data_arr[i], config_addr_arr[i]);
+                config_error = true;
+            }};
+        }}
+        if (config_error) {{
+            std::cout << "error in configuration" << std::endl;
+            // FIXME: 1-bit IO pads are flipped (bit0 and bit1) causing an error
+            // exit(1);
+        }}
+    """
+
+
+if (args.use_jtag):
+    clk_switch += f"""
+    jtag.switch_to_fast();
+    {wrapper_name}->clk_in = 1;
+    {wrapper_name}->eval();
+    for (int i = 0; i < 5; i++) {{
+        {next_command}
+    }}
+    """
 
 # for entry in IOs:
 for module in io_collateral:
@@ -97,15 +245,38 @@ for module in io_collateral:
         {module}_file.close();
     """
 
-harness = f"""\
-#include "V{wrapper_name}.h"
-#include "verilated.h"
-#include <iostream>
-#include "stdint.h"
-#include <fstream>
+step_trace_args = ""
+step_trace_body = ""
+if args.trace:
+    step_trace_args = ", uint32_t &time_step, VerilatedVcdC* tfp"
+    step_trace_body = f"""
+        tfp->dump(time_step);
+        time_step++;
+    """
 
-#define next(circuit) \\
-    do {{ step((circuit)); step((circuit)); }} while (0)
+step_def = f"""\
+void step(V{wrapper_name} *{wrapper_name}{step_trace_args}) {{
+    {wrapper_name}->clk_in ^= 1;
+    {wrapper_name}->eval();
+    {step_trace_body}
+}}
+"""
+
+next_step_args = ""
+next_step_params = ""
+if args.trace:
+    next_step_args = ", (time_step), (tfp)"
+    next_step_params = ", time_step, tfp"
+
+next_def = f"""\
+#define next(circuit{next_step_params}) \\
+        do {{ step((circuit){next_step_args}); step((circuit){next_step_args}); }} while (0)
+"""
+
+harness = f"""\
+{includes}
+
+{next_def}
 
 static const uint32_t config_data_arr[] = {config_data_arr_str};
 static const uint32_t config_addr_arr[] = {config_addr_arr_str};
@@ -113,10 +284,7 @@ static const uint32_t config_addr_arr[] = {config_addr_arr_str};
 // TODO: How many cycles do we actually need to hold reset down?
 static const uint32_t NUM_RESET_CYCLES = 5;
 
-void step(V{wrapper_name} *{wrapper_name}) {{
-    {wrapper_name}->clk_in ^= 1;
-    {wrapper_name}->eval();
-}}
+{step_def}
 
 uint8_t get_bit(uint8_t bit_position, uint{args.chunk_size}_t bit_vector) {{
     return (bit_vector >> bit_position) & 1;
@@ -129,41 +297,41 @@ void set_bit(uint8_t value, uint8_t bit_position, uint{args.chunk_size}_t &bit_v
 int main(int argc, char **argv) {{
     Verilated::commandArgs(argc, argv);
     V{wrapper_name}* {wrapper_name} = new V{wrapper_name};
+    {trace_setup}
 
     {file_setup}
+    
+    //Intialize jtag driver
+    {jtag_setup}
 
-    {wrapper_name}->clk_in = 0;
-    {wrapper_name}->config_addr_in = 0;
-    {wrapper_name}->config_data_in = 0;
-    {wrapper_name}->reset_in = 0;
-    {wrapper_name}->eval();
-    std::cout << "Initializing the CGRA by holding reset high for " << NUM_RESET_CYCLES << "cycles" << std::endl;
+    //Initialize all inputs to known values
+    {chip_init}
 
-    {wrapper_name}->reset_in = 1;
-    for (int i = 0; i < NUM_RESET_CYCLES; i++) {{
-        // TODO: SR's test bench starts on negative edge
-        next({wrapper_name});
-    }}
-    std::cout << "Done initializing" << std::endl;
+    //Reset the chip
+    {chip_reset}
+    std::cout << "Done resetting" << std::endl;
 
-    {wrapper_name}->reset_in = 0;
-    step({wrapper_name});  // clk_in = 1
-    next({wrapper_name});  // clk_in = 1
+    {stall}
 
     std::cout << "Beginning configuration" << std::endl;
     for (int i = 0; i < {len(config_data_arr)}; i++) {{
-        {wrapper_name}->config_data_in = config_data_arr[i];
-        {wrapper_name}->config_addr_in = config_addr_arr[i];
-        next({wrapper_name}); // clk_in = 1
+      {run_config}
     }}
+    
+    {verify_config}
+    
     std::cout << "Done configuring" << std::endl;
+    
+    {clk_switch}
 
+    {unstall}
+    
     std::cout << "Running test" << std::endl;
     for (int i = 0; i < {args.max_clock_cycles}; i++) {{
         {input_body}
-        step({wrapper_name}); // clk_in = 0
+        {step_command}  // clk_in = 0
         {output_body}
-        step({wrapper_name}); // clk_in = 1
+        {step_command}  // clk_in = 1
         if (i % 10 == 0) std::cout << "Cycle: " << i << std::endl;
     }}
     std::cout << "Done testing" << std::endl;
