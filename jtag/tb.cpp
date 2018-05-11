@@ -26,7 +26,17 @@ int main(int argc, char **argv) {
 
   JTAGDriver jtag(top);
   
+  top->reset_in = 0;
+  jtag.init();
   jtag.reset();
+
+  //reset_in reset
+  top->reset_in = 1;
+  top->eval();
+  top->reset_in = 0;
+  top->eval();
+
+  jtag.tck_bringup();
   
   cout << "Testing Write op" << endl;
   jtag.write_config_op(JTAGDriver::OP_WRITE);

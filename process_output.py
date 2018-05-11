@@ -1,6 +1,9 @@
 import json
 import sys
 import shutil
+import os
+dir_path = os.path.dirname(os.path.abspath(__file__))
+
 
 with open(sys.argv[1], "r") as file:
     info = json.load(file)
@@ -28,10 +31,13 @@ if delay_in:
 # TODO: Why do we we do this post processing for these apps?
 if app == "conv_1_2":
     import delegator
-    print(f"../CGRAGenerator/verilator/generator_z_tb/bin/conv_1_2_convert < {name}.raw > {target_file_name}")
-    print(delegator.run(f"../CGRAGenerator/verilator/generator_z_tb/bin/conv_1_2_convert < {name}.raw > {target_file_name}").return_code)
+    print(f"bin/conv_1_2_convert < {name}.raw > {target_file_name}")
+    convert = os.path.join(dir_path, "bin/conv_1_2_convert")
+# Get credentials.py in parent folder
+    assert delegator.run(f"{convert} < {name}.raw > {target_file_name}").return_code
 elif app == "conv_bw":
     import delegator
-    delegator.run(f"../CGRAGenerator/verilator/generator_z_tb/bin/crop31 < {name}.raw > {target_file_name}")
+    convert = os.path.join(dir_path, "bin/crop31")
+    assert delegator.run(f"{convert} < {name}.raw > {target_file_name}").return_code
 else:
     shutil.copy(f"{name}.raw", target_file_name)
