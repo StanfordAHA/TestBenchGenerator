@@ -226,14 +226,13 @@ for module in io_collateral:
         """
     else:
         output_body += f"{module}_out = 0;\n"
-        items = io_collateral[module]["bits"].items()
-        if len(items) == 1:
-            for bit, pad in items:
+        if io_collateral[module]["width"] == 1:
+            for bit, pad in io_collateral[module]["bits"].items():
                 output_body += f"""
                     set_bit({wrapper_name}->{pad}_out, 0, {module}_out);
                 """
         else:
-            for bit, pad in items:
+            for bit, pad in io_collateral[module]["bits"].items():
                 output_body += f"""
                     set_bit({wrapper_name}->{pad}_out, {bit}, {module}_out);
                 """
