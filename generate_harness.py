@@ -264,7 +264,7 @@ if args.trace:
 
 log = ""
 if not args.quiet:
-    log = "if (i % 10 == 0) std::cout << "Cycle: " << i << std::endl;\n"
+    log = "if (i % 10 == 0) std::cout << \"Cycle: \" << i << std::endl;\n"
 
 next_def = f"""\
 #define next(circuit{next_step_params}) \\
