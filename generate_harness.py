@@ -16,6 +16,7 @@ parser.add_argument('--use-jtag', help="Should this test harness use JTAG to wri
 parser.add_argument('--verify-config', help="Should this test harness read back all the config after writing", default=False, action="store_true")
 parser.add_argument('--trace', action="store_true", help="Dump a .vcd using verilator")
 parser.add_argument('--trace-file-name', default="top_tb.vcd")
+parser.add_argument('--quiet', action="store_true", help="Silence cycle counter")
 
 args = parser.parse_args()
 
@@ -38,7 +39,7 @@ with open(args.pnr_io_collateral, "r") as pnr_collateral:
 
 # with open(args.IO, "r") as IO_file:
 #     """
-#     { 
+#     {
 #         "<module_name>": "<file_name>",
 #         "<module_name>": "<file_name>",
 #         "<module_name>": "<file_name>"
@@ -92,7 +93,7 @@ if args.trace:
     trace_setup += f"""
         Verilated::traceEverOn(true);
         VerilatedVcdC* tfp = new VerilatedVcdC;
-        top->trace(tfp, 99); // What is 99?  I don't know!  FIXME 
+        top->trace(tfp, 99); // What is 99?  I don't know!  FIXME
         tfp->open(\"{args.trace_file_name}\");
         uint32_t time_step = 0;
     """
@@ -261,6 +262,10 @@ if args.trace:
     next_step_args = ", (time_step), (tfp)"
     next_step_params = ", time_step, tfp"
 
+log = ""
+if not args.quiet:
+    log = "if (i % 10 == 0) std::cout << \"Cycle: \" << i << std::endl;\n"
+
 next_def = f"""\
 #define next(circuit{next_step_params}) \\
         do {{ step((circuit){next_step_args}); step((circuit){next_step_args}); }} while (0)
@@ -293,7 +298,7 @@ int main(int argc, char **argv) {{
     {trace_setup}
 
     {file_setup}
-    
+
     //Intialize jtag driver
     {jtag_setup}
 
@@ -310,22 +315,22 @@ int main(int argc, char **argv) {{
     for (int i = 0; i < {len(config_data_arr)}; i++) {{
       {run_config}
     }}
-    
+
     {verify_config}
-    
+
     std::cout << "Done configuring" << std::endl;
-    
+
     {clk_switch}
 
     {unstall}
-    
+
     std::cout << "Running test" << std::endl;
     for (int i = 0; i < {args.max_clock_cycles}; i++) {{
         {input_body}
         {step_command}  // clk_in = 0
         {output_body}
         {step_command}  // clk_in = 1
-        if (i % 10 == 0) std::cout << "Cycle: " << i << std::endl;
+        {log}
     }}
     std::cout << "Done testing" << std::endl;
 
