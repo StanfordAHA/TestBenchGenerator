@@ -16,13 +16,12 @@ for key in info:
 
 assert name is not None, "We need at least one in"
 
-
 if delay_out:
     with open(input_file_name, "rb") as input_file:
         with open(f"{name}.raw", "wb") as output_file:
-            for i in range(delay_out):
-                output_file.write(0)
             output_file.write(input_file.read())
+            for i in range(delay_out):
+                output_file.write(b'\0')
 else:
     shutil.copy(input_file_name, f"{name}.raw")
 
