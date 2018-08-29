@@ -141,21 +141,24 @@ if (args.use_jtag):
     jtag.reset();
     jtag.tck_bringup();
     """
-else:
-    chip_reset += f"""
-        {wrapper_name}->clk_in = 1;
-        {wrapper_name}->eval();
-    """
 
 if (args.use_jtag):
     stall += f"""
         jtag.stall();
     """
+else:
+    stall += f"""
+{wrapper_name}->pad_S3_T0_in = 1;
+"""
 
 if (args.use_jtag):
     unstall += f"""
         jtag.unstall();
     """
+else:
+    unstall += f"""
+{wrapper_name}->pad_S3_T0_in = 0;
+"""
 
 if (args.use_jtag):
     run_config += f"""
@@ -310,6 +313,10 @@ int main(int argc, char **argv) {{
     std::cout << "Done resetting" << std::endl;
 
     {stall}
+
+    // Start clock at 1
+    {wrapper_name}->clk_in = 1;
+    {wrapper_name}->eval();
 
     std::cout << "Beginning configuration" << std::endl;
     for (int i = 0; i < {len(config_data_arr)}; i++) {{
