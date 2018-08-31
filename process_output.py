@@ -15,6 +15,9 @@ delay_in, delay_out = [int(x) for x in sys.argv[4].split(",")]
 name = None
 for key in info:
     if info[key]["mode"] == "out":
+        # TODO: Hack to ignore 1 bit output that doesn't need to be post processed
+        if info[key]["width"] == 1:
+            continue
         assert name is None, "This only works for one output"
         name = key
 
