@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import re
 
 parser = argparse.ArgumentParser(description='Test the cgra')
 # parser.add_argument('--IO', metavar='<IO_FILE>', help='File containing mapping between IO ports and files', dest="pnr_io_collateral")
@@ -143,54 +142,23 @@ if (args.use_jtag):
     jtag.tck_bringup();
     """
 
-
-########################################################################
-# FIXME SR's terrible reset_in_pad code
-#
-# "reset_in_pad": {
-#     "bits": {
-#         "0": "pads_N_0[0]"
-#     },
-#     "mode": "in",
-#     "width": 1
-# },
-# 
-reset_in_pad = "pad_S3_T0_in"     # default value
-# FIXME json specifies a single bit input e.g. "pads_N_0[0]" but harness sets entire 16-bit input bus!
-for module in io_collateral:
-    if module == "reset_in_pad":
-        for bit, pad in io_collateral[module]["bits"].items():
-            parse = re.search(r'(.*)(\[.*\])', pad)
-            assert parse
-            reset_in_pad = parse.group(1) + "_in"
-            break;
-
-
 if (args.use_jtag):
     stall += f"""
         jtag.stall();
     """
 else:
-    # FIXME json specifies a single bit input e.g. "pads_N_0[0]" but harness sets entire 16-bit input bus!
-    # stall += f"""
-    # {wrapper_name}->pad_S3_T0_in = 1;
-    # """
     stall += f"""
-    // STALL
-    {wrapper_name}->{reset_in_pad} = 1;"""
+{wrapper_name}->pad_S3_T0_in = 1;
+"""
 
 if (args.use_jtag):
     unstall += f"""
         jtag.unstall();
     """
 else:
-    # FIXME json specifies a single bit input e.g. "pads_N_0[0]" but harness sets entire 16-bit input bus!
-    # unstall += f"""
-    # {wrapper_name}->pad_S3_T0_in = 0;
-    # """
     unstall += f"""
-    // UNSTALL
-    {wrapper_name}->{reset_in_pad} = 0;"""
+{wrapper_name}->pad_S3_T0_in = 0;
+"""
 
 if (args.use_jtag):
     run_config += f"""
@@ -257,27 +225,15 @@ for module in io_collateral:
             }}
         """
         for bit, pad in io_collateral[module]["bits"].items():
-            parse = re.search(r'(.*)(\[.*\])', pad)
-            if (parse):
-                pad = parse.group(1);
-                ix  = parse.group(2);
-                input_body += f"""
-                {wrapper_name}->{pad}_in |= get_bit({bit:>2s}, {module}_in) << {bit:>2s};"""
-            else:
-                input_body += f"""
-                {wrapper_name}->{pad}_in = get_bit({bit}, {module}_in);"""
+            input_body += f"""
+            {wrapper_name}->{pad}_in = get_bit({bit}, {module}_in);
+        """
     else:
         output_body += f"{module}_out = 0;\n"
         for bit, pad in io_collateral[module]["bits"].items():
-            parse = re.search(r'(.*)(\[.*\])', pad)
-            if (parse):
-                pad = parse.group(1);
-                ix  = parse.group(2);
-                output_body += f"""
-                set_bit( (({wrapper_name}->{pad}_out >> {bit:>2s}) & 0x1), {bit:>2s}, {module}_out);"""
-            else:
-                output_body += f"""
-                set_bit({wrapper_name}->{pad}_out, {bit}, {module}_out);"""
+            output_body += f"""
+                set_bit({wrapper_name}->{pad}_out, {bit}, {module}_out);
+            """
         output_body += f"""
             {module}_file.write((char *)&{module}_out, sizeof(uint{args.chunk_size}_t));
         """
