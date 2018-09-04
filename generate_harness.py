@@ -143,25 +143,35 @@ if (args.use_jtag):
     jtag.tck_bringup();
     """
 
-found_new_stuff = False
+
+########################################################################
+# FIXME SR's terrible reset_in_pad code
+#
+# "reset_in_pad": {
+#     "bits": {
+#         "0": "pads_N_0[0]"
+#     },
+#     "mode": "in",
+#     "width": 1
+# },
+# 
+reset_in_pad = "pad_S3_T0_in"     # default value
+# FIXME json specifies a single bit input e.g. "pads_N_0[0]" but harness sets entire 16-bit input bus!
 for module in io_collateral:
-    mode = io_collateral[module]["mode"]
-    if mode == 'in':
+    if module == "reset_in_pad":
         for bit, pad in io_collateral[module]["bits"].items():
             parse = re.search(r'(.*)(\[.*\])', pad)
-            if (parse): found_new_stuff = True
+            assert parse
+            reset_in_pad = parse.group(1) + "_in"
+            break;
 
-
-if found_new_stuff:
-    reset_in_pad = "pads_N_0_in"
-else:
-    reset_in_pad = "pad_S3_T0_in"
 
 if (args.use_jtag):
     stall += f"""
         jtag.stall();
     """
 else:
+    # FIXME json specifies a single bit input e.g. "pads_N_0[0]" but harness sets entire 16-bit input bus!
     # stall += f"""
     # {wrapper_name}->pad_S3_T0_in = 1;
     # """
@@ -174,6 +184,7 @@ if (args.use_jtag):
         jtag.unstall();
     """
 else:
+    # FIXME json specifies a single bit input e.g. "pads_N_0[0]" but harness sets entire 16-bit input bus!
     # unstall += f"""
     # {wrapper_name}->pad_S3_T0_in = 0;
     # """
