@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 
 parser = argparse.ArgumentParser(description='Test the cgra')
 # parser.add_argument('--IO', metavar='<IO_FILE>', help='File containing mapping between IO ports and files', dest="pnr_io_collateral")
@@ -142,23 +143,43 @@ if (args.use_jtag):
     jtag.tck_bringup();
     """
 
+found_new_stuff = False
+for module in io_collateral:
+    mode = io_collateral[module]["mode"]
+    if mode == 'in':
+        for bit, pad in io_collateral[module]["bits"].items():
+            parse = re.search(r'(.*)(\[.*\])', pad)
+            if (parse): found_new_stuff = True
+
+
+if found_new_stuff:
+    reset_in_pad = "pads_N_0_in"
+else:
+    reset_in_pad = "pad_S3_T0_in"
+
 if (args.use_jtag):
     stall += f"""
         jtag.stall();
     """
 else:
+    # stall += f"""
+    # {wrapper_name}->pad_S3_T0_in = 1;
+    # """
     stall += f"""
-{wrapper_name}->pad_S3_T0_in = 1;
-"""
+    // STALL
+    {wrapper_name}->{reset_in_pad} = 1;"""
 
 if (args.use_jtag):
     unstall += f"""
         jtag.unstall();
     """
 else:
+    # unstall += f"""
+    # {wrapper_name}->pad_S3_T0_in = 0;
+    # """
     unstall += f"""
-{wrapper_name}->pad_S3_T0_in = 0;
-"""
+    // UNSTALL
+    {wrapper_name}->{reset_in_pad} = 0;"""
 
 if (args.use_jtag):
     run_config += f"""
@@ -225,15 +246,27 @@ for module in io_collateral:
             }}
         """
         for bit, pad in io_collateral[module]["bits"].items():
-            input_body += f"""
-            {wrapper_name}->{pad}_in = get_bit({bit}, {module}_in);
-        """
+            parse = re.search(r'(.*)(\[.*\])', pad)
+            if (parse):
+                pad = parse.group(1);
+                ix  = parse.group(2);
+                input_body += f"""
+                {wrapper_name}->{pad}_in |= get_bit({bit:>2s}, {module}_in) << {bit:>2s};"""
+            else:
+                input_body += f"""
+                {wrapper_name}->{pad}_in = get_bit({bit}, {module}_in);"""
     else:
         output_body += f"{module}_out = 0;\n"
         for bit, pad in io_collateral[module]["bits"].items():
-            output_body += f"""
-                set_bit({wrapper_name}->{pad}_out, {bit}, {module}_out);
-            """
+            parse = re.search(r'(.*)(\[.*\])', pad)
+            if (parse):
+                pad = parse.group(1);
+                ix  = parse.group(2);
+                output_body += f"""
+                set_bit( (({wrapper_name}->{pad}_out >> {bit:>2s}) & 0x1), {bit:>2s}, {module}_out);"""
+            else:
+                output_body += f"""
+                set_bit({wrapper_name}->{pad}_out, {bit}, {module}_out);"""
         output_body += f"""
             {module}_file.write((char *)&{module}_out, sizeof(uint{args.chunk_size}_t));
         """
