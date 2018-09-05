@@ -270,6 +270,7 @@ for module in io_collateral:
         # print(input_body);
 
     else: # mode == "out"
+        pad_bus = io_collateral[module]["pad_bus"]
         assert mode == "out"
         if "bits" in io_collateral[module]:
             output_body += f"""\n
