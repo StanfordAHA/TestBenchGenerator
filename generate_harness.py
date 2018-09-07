@@ -205,7 +205,7 @@ for module in io_collateral:
     if mode == "inout":
         raise NotImplementedError()
     file_setup += f"""
-        std::fstream {module}_file("{file_name}", ios::{mode} | ios::binary);
+        std::fstream {module}_file("{file_name}", std::ios::{mode} | std::ios::binary);
         if (!{module}_file.is_open()) {{
             std::cout << "Could not open file {file_name}" << std::endl;
             return 1;
