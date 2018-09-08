@@ -2,7 +2,7 @@
 
 ## Help
 ```shell
-❯ python generate_harness.py --help
+$ python generate_harness.py --help
 usage: generate_harness.py [-h] --pnr-io-collateral <collateral_file>.io.json
                            --bitstream <BITSTREAM_FILE>
                            [--trace-file TRACE_FILE]
@@ -37,16 +37,16 @@ optional arguments:
   --trace               Dump a .vcd using verilator. **NOTE**: If you add the
                         --trace flag, you must use it both with
                         generate_harness.py and verilate.py. Also, you must
-                        either use --force-rebuild with verilator.py or be
-                        sure to remove any existing Verilator binary, e.g. rm
-                        -r CGRAGenerator/verilator/generator_z_tb/build/*. One
+                        either use --force-rebuild with verilate.py or be sure
+                        to remove any existing verilator binary, e.g. rm -r
+                        CGRAGenerator/verilator/generator_z_tb/build/*. One
                         way to do this would be through a make clean rule
   --trace-file-name TRACE_FILE_NAME
   --quiet               Silence cycle counter
 ```
 
 ```shell
-❯ python verilate.py --help
+$ python verilate.py --help
 usage: verilate.py [-h] [--top-module-name TOP_MODULE_NAME]
                    [--harness HARNESS] [--verilog-directory VERILOG_DIRECTORY]
                    [--force-rebuild] [--output-directory OUTPUT_DIRECTORY]
@@ -65,12 +65,12 @@ optional arguments:
   --force-rebuild       Run verilator even if there's an existing binary
   --output-directory OUTPUT_DIRECTORY
                         Directory to place verilator output files
-  --trace               Dump a .vcd using verilator **NOTE**: If you add the
+  --trace               Dump a .vcd using verilator. **NOTE**: If you add the
                         --trace flag, you must use it both with
                         generate_harness.py and verilate.py. Also, you must
-                        either use --force-rebuild with verilator.py or be
-                        sure to remove any existing Verilator binary, e.g. rm
-                        -r CGRAGenerator/verilator/generator_z_tb/build/*. One
+                        either use --force-rebuild with verilate.py or be sure
+                        to remove any existing verilator binary, e.g. rm -r
+                        CGRAGenerator/verilator/generator_z_tb/build/*. One
                         way to do this would be through a make clean rule
 ```
 
