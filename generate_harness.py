@@ -112,8 +112,8 @@ if (args.use_jtag):
 
 
 chip_init += f"""
-    {wrapper_name}->clk_in = 0;
-    {wrapper_name}->reset_in = 0;
+    {wrapper_name}->clk_pad = 0;
+    {wrapper_name}->reset_pad = 0;
 """
 if (args.use_jtag):
     chip_init += f"""
@@ -130,9 +130,9 @@ chip_init += f"""
 """
 
 chip_reset = f"""
-    {wrapper_name}->reset_in = 1;
+    {wrapper_name}->reset_pad = 1;
     {wrapper_name}->eval();
-    {wrapper_name}->reset_in = 0;
+    {wrapper_name}->reset_pad = 0;
     {wrapper_name}->eval();
 """
 
@@ -212,7 +212,7 @@ if (args.use_jtag and args.verify_config):
 if (args.use_jtag):
     clk_switch += f"""
     jtag.switch_to_fast();
-    {wrapper_name}->clk_in = 1;
+    {wrapper_name}->clk_pad = 1;
     {wrapper_name}->eval();
     for (int i = 0; i < 5; i++) {{
         {next_command}
@@ -303,7 +303,7 @@ if args.trace:
 
 step_def = f"""\
 void step(V{wrapper_name} *{wrapper_name}{step_trace_args}) {{
-    {wrapper_name}->clk_in ^= 1;
+    {wrapper_name}->clk_pad ^= 1;
     {wrapper_name}->eval();
     {step_trace_body}
 }}
@@ -365,7 +365,7 @@ int main(int argc, char **argv) {{
     {stall}
 
     // Start clock at 1
-    {wrapper_name}->clk_in = 1;
+    {wrapper_name}->clk_pad = 1;
     {wrapper_name}->eval();
 
     std::cout << "Beginning configuration" << std::endl;
@@ -384,9 +384,9 @@ int main(int argc, char **argv) {{
     std::cout << "Running test" << std::endl;
     for (int i = 0; i < {args.max_clock_cycles}; i++) {{
         {input_body}
-        {step_command}  // clk_in = 0
+        {step_command}  // clk_pad = 0
         {output_body}
-        {step_command}  // clk_in = 1
+        {step_command}  // clk_pad = 1
         {log}
     }}
     std::cout << "Done testing" << std::endl;
