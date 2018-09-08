@@ -1,10 +1,8 @@
 # TestBenchGenerator
 
-**NOTE:** If you add the `--trace` flag, you must use it both with `generate_harness.py` and `verilate.py`. Also, you must either use `--force-rebuild` with `verilator.py` or be sure to remove the existing Verilator binary, e.g. `rm -r CGRAGenerator/verilator/generator_z_tb/build/*`. One way to do this would be through a `make` rule
-
-Help:
-```
-$ python generate_harness.py --help
+## Help
+```shell
+❯ python generate_harness.py --help
 usage: generate_harness.py [-h] --pnr-io-collateral <collateral_file>.io.json
                            --bitstream <BITSTREAM_FILE>
                            [--trace-file TRACE_FILE]
@@ -36,12 +34,19 @@ optional arguments:
   --use-jtag            Should this test harness use JTAG to write config
   --verify-config       Should this test harness read back all the config
                         after writing
-  --trace               Dump a .vcd using verilator
+  --trace               Dump a .vcd using verilator. **NOTE**: If you add the
+                        --trace flag, you must use it both with
+                        generate_harness.py and verilate.py. Also, you must
+                        either use --force-rebuild with verilator.py or be
+                        sure to remove any existing Verilator binary, e.g. rm
+                        -r CGRAGenerator/verilator/generator_z_tb/build/*. One
+                        way to do this would be through a make clean rule
   --trace-file-name TRACE_FILE_NAME
   --quiet               Silence cycle counter
 ```
-```
-$ python verilate.py --help
+
+```shell
+❯ python verilate.py --help
 usage: verilate.py [-h] [--top-module-name TOP_MODULE_NAME]
                    [--harness HARNESS] [--verilog-directory VERILOG_DIRECTORY]
                    [--force-rebuild] [--output-directory OUTPUT_DIRECTORY]
@@ -60,10 +65,16 @@ optional arguments:
   --force-rebuild       Run verilator even if there's an existing binary
   --output-directory OUTPUT_DIRECTORY
                         Directory to place verilator output files
-  --trace               Dump a .vcd using verilator
+  --trace               Dump a .vcd using verilator **NOTE**: If you add the
+                        --trace flag, you must use it both with
+                        generate_harness.py and verilate.py. Also, you must
+                        either use --force-rebuild with verilator.py or be
+                        sure to remove any existing Verilator binary, e.g. rm
+                        -r CGRAGenerator/verilator/generator_z_tb/build/*. One
+                        way to do this would be through a make clean rule
 ```
 
-Example Usage:
+## Example Usage
 ```
 python generate_harness.py \
     --pnr-io-collateral tests/conv_bw/conv_bw.io.json \
