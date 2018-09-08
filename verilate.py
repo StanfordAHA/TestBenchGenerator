@@ -8,7 +8,7 @@ parser.add_argument('--harness', help="Path to harness file")
 parser.add_argument('--verilog-directory', help="Directory containing verilog files to include in the verilator command")
 parser.add_argument('--force-rebuild', help="Run verilator even if there's an existing binary", action='store_true')
 parser.add_argument('--output-directory', help="Directory to place verilator output files", default="obj_dir")
-parser.add_argument('--trace', action="store_true", help="Dump a .vcd using verilator")
+parser.add_argument('--trace', action="store_true", help="Dump a .vcd using verilator **NOTE**: If you add the --trace flag, you must use it both with generate_harness.py and verilate.py. Also, you must either use --force-rebuild with verilator.py or be sure to remove any existing Verilator binary, e.g. rm -r CGRAGenerator/verilator/generator_z_tb/build/*. One way to do this would be through a make clean rule")
 
 args = parser.parse_args()
 

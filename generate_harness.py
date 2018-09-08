@@ -14,7 +14,7 @@ parser.add_argument('--chunk-size', help="Size in bits of the data in the input/
 parser.add_argument('--output-file-name', help="Name of the generated harness file", default="harness.cpp")
 parser.add_argument('--use-jtag', help="Should this test harness use JTAG to write config", default=False, action="store_true")
 parser.add_argument('--verify-config', help="Should this test harness read back all the config after writing", default=False, action="store_true")
-parser.add_argument('--trace', action="store_true", help="Dump a .vcd using verilator")
+parser.add_argument('--trace', action="store_true", help="Dump a .vcd using verilator. **NOTE**: If you add the --trace flag, you must use it both with generate_harness.py and verilate.py. Also, you must either use --force-rebuild with verilator.py or be sure to remove any existing Verilator binary, e.g. rm -r CGRAGenerator/verilator/generator_z_tb/build/*. One way to do this would be through a make clean rule")
 parser.add_argument('--trace-file-name', default="top_tb.vcd")
 parser.add_argument('--quiet', action="store_true", help="Silence cycle counter")
 
