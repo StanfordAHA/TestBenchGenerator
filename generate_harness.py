@@ -148,11 +148,11 @@ if (args.use_jtag):
 #         "bits": {
 #             "0": { "pad_bit":"0" }
 #         },
-#         "mode": "in",
+#         "mode": "reset",
 #         "width": 1
 reset_in_pad = None
 for module in io_collateral:
-    if module == "reset_in_pad":
+    if io_collateral[module]["mode"] == "reset":
         reset_in_pad = io_collateral[module]["pad_bus"]
         for bit, pad_info in io_collateral[module]["bits"].items():
             pad_bit = pad_info["pad_bit"]
