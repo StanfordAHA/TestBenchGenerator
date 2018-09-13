@@ -157,7 +157,7 @@ for module in io_collateral:
         for bit, pad_info in io_collateral[module]["bits"].items():
             pad_bit = pad_info["pad_bit"]
             break;
-assert reset_in_pad != None, "No reset_pad_in in io_config file"    
+assert reset_in_pad != None, "No reset_pad_in in io_config file"
 
 
 if (args.use_jtag):
@@ -221,11 +221,12 @@ if (args.use_jtag):
 
 # for entry in IOs:
 for module in io_collateral:
-    if module == "reset_in_pad": continue   # (already processed, above)
-    file_name = f"{module}.raw"
     mode = io_collateral[module]["mode"]
     if mode == "inout":
         raise NotImplementedError()
+    elif mode == "reset":
+        continue   # (already processed, above)
+    file_name = f"{module}.raw"
     file_setup += f"""
         std::fstream {module}_file("{file_name}", ios::{mode} | ios::binary);
         if (!{module}_file.is_open()) {{
