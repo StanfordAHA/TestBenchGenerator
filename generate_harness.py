@@ -142,14 +142,12 @@ if (args.use_jtag):
     jtag.tck_bringup();
     """
 
-########################################
-#     "reset_in_pad": {
-#         "pad_bus" : "pads_N_0",
-#         "bits": {
-#             "0": { "pad_bit":"0" }
-#         },
-#         "mode": "reset",
-#         "width": 1
+# EXAMPLE
+#  "reset_in_pad": {
+#      "pad_bus" : "pads_N_0",
+#      "bits": { "0": { "pad_bit":"0" }},
+#      "mode": "reset",
+#      "width": 1
 reset_in_pad = None
 for module in io_collateral:
     if io_collateral[module]["mode"] == "reset":
@@ -246,7 +244,7 @@ for module in io_collateral:
         """
         pad_bus = io_collateral[module]["pad_bus"]
         if "bits" in io_collateral[module]:
-            #    "io16in_in_arg_1_0_0": {
+            # EG  io16in_in_arg_1_0_0": {
             #        "pad_bus" : "pads_W_0",
             #        "bits": {
             #             "0": { "pad_bit":"0" },
@@ -268,7 +266,6 @@ for module in io_collateral:
             #     "width": 16
             input_body += f"""
         {wrapper_name}->{pad_bus}_in = {module}_in;"""
-        # print(input_body);
 
     else: # mode == "out"
         pad_bus = io_collateral[module]["pad_bus"]
