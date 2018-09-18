@@ -174,8 +174,6 @@ else:
     unstall += f"""\
 {wrapper_name}->{reset_in_pad}_in = (0 << {pad_bit}); // UNSTALL"""
 
-# print(stall); print(unstall); exit()
-
 if (args.use_jtag):
     run_config += f"""
         jtag.write_config(config_addr_arr[i],config_data_arr[i]);
@@ -283,8 +281,6 @@ for module in io_collateral:
 
         output_body += f"""
         {module}_file.write((char *)&{module}_out, sizeof(uint{args.chunk_size}_t));"""
-        # print(output_body); exit();
-
 
     file_close += f"""
         {module}_file.close();
