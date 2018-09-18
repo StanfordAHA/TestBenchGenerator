@@ -11,7 +11,8 @@ delay_in, delay_out = [int(x) for x in sys.argv[3].split(",")]
 name = None
 for key in info:
     if info[key]["mode"] == "in":
-        assert name is None, "This only works for one in"
+        if key == "reset_in_pad": continue
+        assert name is None, "This only works for one (non-reset_in_pad) in"
         name = key
 
 assert name is not None, "We need at least one in"
