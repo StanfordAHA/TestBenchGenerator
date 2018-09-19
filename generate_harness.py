@@ -155,14 +155,13 @@ for module in io_collateral:
         for bit, pad_info in io_collateral[module]["bits"].items():
             pad_bit = pad_info["pad_bit"]
             break;
-assert reset_in_pad != None, "No reset_pad_in in io_config file"
 
 
 if (args.use_jtag):
     stall += f"""
         jtag.stall();
     """
-else:
+elif reset_in_pad is not None:
     stall += f"""\
 {wrapper_name}->{reset_in_pad}_in = (1 << {pad_bit}); // STALL"""
 
@@ -170,7 +169,7 @@ if (args.use_jtag):
     unstall += f"""
         jtag.unstall();
     """
-else:
+elif reset_in_pad is not None:
     unstall += f"""\
 {wrapper_name}->{reset_in_pad}_in = (0 << {pad_bit}); // UNSTALL"""
 
