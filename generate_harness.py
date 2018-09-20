@@ -258,7 +258,7 @@ for module in io_collateral:
         {wrapper_name}->{pad_bus}_in |= get_bit({bit:>2s}, {module}_in) << {pad_bit:>2s};"""
         else:
             # "io16in_in_arg_1_0_0": {
-            #     "bus" : "pads_W_0",
+            #     "pad_bus" : "pads_W_0",
             #     "mode": "in",
             #     "width": 16
             input_body += f"""
