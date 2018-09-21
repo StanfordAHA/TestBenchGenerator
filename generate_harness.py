@@ -11,7 +11,8 @@ parser.add_argument('--bitstream', metavar='<BITSTREAM_FILE>', help='Bitstream f
 parser.add_argument('--trace-file', help='Trace file', default=None)
 parser.add_argument('--max-clock-cycles', help='Max number of clock cyles to run', default=40, type=int)
 parser.add_argument('--wrapper-module-name', help='Name of the wrapper module', default='top')
-parser.add_argument('--chunk-size', help="Size in bits of the data in the input/output files", default=8, type=int)
+parser.add_argument('--input-chunk-size', help="Size in bits of the data in the input files", default=8, type=int)
+parser.add_argument('--output-chunk-size', help="Size in bits of the data in the output files", default=8, type=int)
 parser.add_argument('--output-file-name', help="Name of the generated harness file", default="harness.cpp")
 parser.add_argument('--use-jtag', help="Should this test harness use JTAG to write config", default=False, action="store_true")
 parser.add_argument('--verify-config', help="Should this test harness read back all the config after writing", default=False, action="store_true")
@@ -229,12 +230,13 @@ for module in io_collateral:
             std::cout << "Could not open file {file_name}" << std::endl;
             return 1;
         }}
-        uint{args.chunk_size}_t {module}_{mode} = 0;
     """
 
     if mode == 'in':
+        file_setup += f"""
+            uint{args.input_chunk_size}_t {module}_{mode} = 0;"""
         input_body += f"""
-            {module}_file.read((char *)&{module}_in, sizeof(uint{args.chunk_size}_t));
+            {module}_file.read((char *)&{module}_in, sizeof(uint{args.input_chunk_size}_t));
             if ({module}_file.eof()) {{
                 std::cout << "Reached end of file {file_name}" << std::endl;
                 break;
@@ -256,7 +258,7 @@ for module in io_collateral:
             for bit, pad_info in io_collateral[module]["bits"].items():
                 pad_bit = pad_info["pad_bit"]
                 input_body += f"""
-        {wrapper_name}->{pad_bus}_in |= get_bit({bit:>2s}, {module}_in) << {pad_bit:>2s};"""
+        {wrapper_name}->{pad_bus}_in |= get_bit<uint{args.input_chunk_size}_t>({bit:>2s}, {module}_in) << {pad_bit:>2s};"""
         else:
             # "io16in_in_arg_1_0_0": {
             #     "pad_bus" : "pads_W_0",
@@ -268,19 +270,22 @@ for module in io_collateral:
     else: # mode == "out"
         pad_bus = io_collateral[module]["pad_bus"]
         assert mode == "out"
+        file_setup += f"""
+            uint{args.output_chunk_size}_t {module}_{mode} = 0;"""
         if "bits" in io_collateral[module]:
             output_body += f"""\n
         {module}_out = 0;"""
             for bit, pad_info in io_collateral[module]["bits"].items():
                 pad_bit = pad_info["pad_bit"]
                 output_body += f"""
-        set_bit( (({wrapper_name}->{pad_bus}_out >> {pad_bit:>2s}) & 0x1), {bit:>2s}, {module}_out);"""
+        set_bit<uint{args.output_chunk_size}_t>((({wrapper_name}->{pad_bus}_out >> {pad_bit:>2s}) & 0x1),
+                                                {bit:>2s}, {module}_out);"""
         else:
             output_body += f"""
         {module}_out = {wrapper_name}->{pad_bus}_out;"""
 
         output_body += f"""
-        {module}_file.write((char *)&{module}_out, sizeof(uint{args.chunk_size}_t));"""
+        {module}_file.write((char *)&{module}_out, sizeof(uint{args.output_chunk_size}_t));"""
 
     file_close += f"""
         {module}_file.close();
@@ -331,11 +336,13 @@ static const uint32_t NUM_RESET_CYCLES = 5;
 
 {step_def}
 
-uint8_t get_bit(uint8_t bit_position, uint{args.chunk_size}_t bit_vector) {{
+template <class T>
+uint8_t get_bit(uint8_t bit_position, T bit_vector) {{
     return (bit_vector >> bit_position) & 1;
 }}
 
-void set_bit(uint8_t value, uint8_t bit_position, uint{args.chunk_size}_t &bit_vector) {{
+template <class T>
+void set_bit(uint8_t value, uint8_t bit_position, T &bit_vector) {{
     bit_vector |= (value << bit_position);
 }}
 
