@@ -1,5 +1,8 @@
 # TestBenchGenerator
 
+Documentation:
+[https://stanfordaha.github.io/CGRAFlowDoc/tbg/intro.html](https://stanfordaha.github.io/CGRAFlowDoc/tbg/intro.html)
+
 ## Help
 ```shell
 $ python generate_harness.py --help
@@ -8,7 +11,8 @@ usage: generate_harness.py [-h] --pnr-io-collateral <collateral_file>.io.json
                            [--trace-file TRACE_FILE]
                            [--max-clock-cycles MAX_CLOCK_CYCLES]
                            [--wrapper-module-name WRAPPER_MODULE_NAME]
-                           [--chunk-size CHUNK_SIZE]
+                           [--input-chunk-size INPUT_CHUNK_SIZE]
+                           [--output-chunk-size OUTPUT_CHUNK_SIZE]
                            [--output-file-name OUTPUT_FILE_NAME] [--use-jtag]
                            [--verify-config] [--trace]
                            [--trace-file-name TRACE_FILE_NAME] [--quiet]
@@ -27,8 +31,10 @@ optional arguments:
                         Max number of clock cyles to run
   --wrapper-module-name WRAPPER_MODULE_NAME
                         Name of the wrapper module
-  --chunk-size CHUNK_SIZE
-                        Size in bits of the data in the input/output files
+  --input-chunk-size INPUT_CHUNK_SIZE
+                        Size in bits of the data in the input files
+  --output-chunk-size OUTPUT_CHUNK_SIZE
+                        Size in bits of the data in the output files
   --output-file-name OUTPUT_FILE_NAME
                         Name of the generated harness file
   --use-jtag            Should this test harness use JTAG to write config
