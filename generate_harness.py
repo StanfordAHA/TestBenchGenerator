@@ -51,6 +51,7 @@ with open(args.pnr_io_collateral, "r") as pnr_collateral:
 
 includes = ""
 file_setup = ""
+trace_setup = ""
 jtag_setup = ""
 chip_init = ""
 chip_reset = ""
@@ -87,7 +88,6 @@ if args.trace:
 else:
     next_command = f"next({wrapper_name});"
 
-trace_setup = ""
 if args.trace:
     includes += "#include \"verilated_vcd_c.h\"\n"
     trace_setup += f"""
