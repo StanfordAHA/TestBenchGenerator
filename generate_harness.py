@@ -1,4 +1,5 @@
 # ❯ python generate_harness.py --pnr-io-collateral pointwise.io.json --bitstream pointwise.bs && astyle harness.cpp
+from common import trace_help_string
 
 import argparse
 import json
@@ -10,11 +11,12 @@ parser.add_argument('--bitstream', metavar='<BITSTREAM_FILE>', help='Bitstream f
 parser.add_argument('--trace-file', help='Trace file', default=None)
 parser.add_argument('--max-clock-cycles', help='Max number of clock cyles to run', default=40, type=int)
 parser.add_argument('--wrapper-module-name', help='Name of the wrapper module', default='top')
-parser.add_argument('--chunk-size', help="Size in bits of the data in the input/output files", default=8, type=int)
+parser.add_argument('--input-chunk-size', help="Size in bits of the data in the input files", default=8, type=int)
+parser.add_argument('--output-chunk-size', help="Size in bits of the data in the output files", default=8, type=int)
 parser.add_argument('--output-file-name', help="Name of the generated harness file", default="harness.cpp")
 parser.add_argument('--use-jtag', help="Should this test harness use JTAG to write config", default=False, action="store_true")
 parser.add_argument('--verify-config', help="Should this test harness read back all the config after writing", default=False, action="store_true")
-parser.add_argument('--trace', action="store_true", help="Dump a .vcd using verilator")
+parser.add_argument('--trace', action="store_true", help=trace_help_string)
 parser.add_argument('--trace-file-name', default="top_tb.vcd")
 parser.add_argument('--quiet', action="store_true", help="Silence cycle counter")
 
@@ -112,8 +114,8 @@ if (args.use_jtag):
 
 
 chip_init += f"""
-    {wrapper_name}->clk_in = 0;
-    {wrapper_name}->reset_in = 0;
+    {wrapper_name}->clk_pad = 0;
+    {wrapper_name}->reset_pad = 0;
 """
 if (args.use_jtag):
     chip_init += f"""
@@ -130,9 +132,9 @@ chip_init += f"""
 """
 
 chip_reset = f"""
-    {wrapper_name}->reset_in = 1;
+    {wrapper_name}->reset_pad = 1;
     {wrapper_name}->eval();
-    {wrapper_name}->reset_in = 0;
+    {wrapper_name}->reset_pad = 0;
     {wrapper_name}->eval();
 """
 
@@ -141,21 +143,37 @@ if (args.use_jtag):
     jtag.reset();
     jtag.tck_bringup();
     """
-else:
-    chip_reset += f"""
-        {wrapper_name}->clk_in = 1;
-        {wrapper_name}->eval();
-    """
+
+# EXAMPLE
+#  "reset_in_pad": {
+#      "pad_bus" : "pads_N_0",
+#      "bits": { "0": { "pad_bit":"0" }},
+#      "mode": "reset",
+#      "width": 1
+reset_in_pad = None
+for module in io_collateral:
+    if io_collateral[module]["mode"] == "reset":
+        reset_in_pad = io_collateral[module]["pad_bus"]
+        for bit, pad_info in io_collateral[module]["bits"].items():
+            pad_bit = pad_info["pad_bit"]
+            break;
+
 
 if (args.use_jtag):
     stall += f"""
         jtag.stall();
     """
+elif reset_in_pad is not None:
+    stall += f"""\
+{wrapper_name}->{reset_in_pad}_in = (1 << {pad_bit}); // STALL"""
 
 if (args.use_jtag):
     unstall += f"""
         jtag.unstall();
     """
+elif reset_in_pad is not None:
+    unstall += f"""\
+{wrapper_name}->{reset_in_pad}_in = (0 << {pad_bit}); // UNSTALL"""
 
 if (args.use_jtag):
     run_config += f"""
@@ -191,7 +209,7 @@ if (args.use_jtag and args.verify_config):
 if (args.use_jtag):
     clk_switch += f"""
     jtag.switch_to_fast();
-    {wrapper_name}->clk_in = 1;
+    {wrapper_name}->clk_pad = 1;
     {wrapper_name}->eval();
     for (int i = 0; i < 5; i++) {{
         {next_command}
@@ -200,40 +218,74 @@ if (args.use_jtag):
 
 # for entry in IOs:
 for module in io_collateral:
-    file_name = f"{module}.raw"
     mode = io_collateral[module]["mode"]
     if mode == "inout":
         raise NotImplementedError()
+    elif mode == "reset":
+        continue   # (already processed, above)
+    file_name = f"{module}.raw"
     file_setup += f"""
-        std::fstream {module}_file("{file_name}", ios::{mode} | ios::binary);
+        std::fstream {module}_file("{file_name}", std::ios::{mode} | std::ios::binary);
         if (!{module}_file.is_open()) {{
             std::cout << "Could not open file {file_name}" << std::endl;
             return 1;
         }}
-        uint{args.chunk_size}_t {module}_{mode} = 0;
     """
 
     if mode == 'in':
+        file_setup += f"""
+            uint{args.input_chunk_size}_t {module}_{mode} = 0;"""
         input_body += f"""
-            {module}_file.read((char *)&{module}_in, sizeof(uint{args.chunk_size}_t));
+            {module}_file.read((char *)&{module}_in, sizeof(uint{args.input_chunk_size}_t));
             if ({module}_file.eof()) {{
                 std::cout << "Reached end of file {file_name}" << std::endl;
                 break;
             }}
         """
-        for bit, pad in io_collateral[module]["bits"].items():
+        pad_bus = io_collateral[module]["pad_bus"]
+        if "bits" in io_collateral[module]:
+            # EG  io16in_in_arg_1_0_0": {
+            #        "pad_bus" : "pads_W_0",
+            #        "bits": {
+            #             "0": { "pad_bit":"0" },
+            #             "1": { "pad_bit":"1" },
+            #             ...
+            #            "15": { "pad_bit":"15" }
+            #        "mode": "in",
+            #        "width": 16
             input_body += f"""
-            {wrapper_name}->{pad}_in = get_bit({bit}, {module}_in);
-        """
-    else:
-        output_body += f"{module}_out = 0;\n"
-        for bit, pad in io_collateral[module]["bits"].items():
+        {wrapper_name}->{pad_bus}_in = 0;"""
+            for bit, pad_info in io_collateral[module]["bits"].items():
+                pad_bit = pad_info["pad_bit"]
+                input_body += f"""
+        {wrapper_name}->{pad_bus}_in |= get_bit<uint{args.input_chunk_size}_t>({bit:>2s}, {module}_in) << {pad_bit:>2s};"""
+        else:
+            # "io16in_in_arg_1_0_0": {
+            #     "pad_bus" : "pads_W_0",
+            #     "mode": "in",
+            #     "width": 16
+            input_body += f"""
+        {wrapper_name}->{pad_bus}_in = {module}_in;"""
+
+    else: # mode == "out"
+        pad_bus = io_collateral[module]["pad_bus"]
+        assert mode == "out"
+        file_setup += f"""
+            uint{args.output_chunk_size}_t {module}_{mode} = 0;"""
+        if "bits" in io_collateral[module]:
+            output_body += f"""\n
+        {module}_out = 0;"""
+            for bit, pad_info in io_collateral[module]["bits"].items():
+                pad_bit = pad_info["pad_bit"]
+                output_body += f"""
+        set_bit<uint{args.output_chunk_size}_t>((({wrapper_name}->{pad_bus}_out >> {pad_bit:>2s}) & 0x1),
+                                                {bit:>2s}, {module}_out);"""
+        else:
             output_body += f"""
-                set_bit({wrapper_name}->{pad}_out, {bit}, {module}_out);
-            """
+        {module}_out = {wrapper_name}->{pad_bus}_out;"""
+
         output_body += f"""
-            {module}_file.write((char *)&{module}_out, sizeof(uint{args.chunk_size}_t));
-        """
+        {module}_file.write((char *)&{module}_out, sizeof(uint{args.output_chunk_size}_t));"""
 
     file_close += f"""
         {module}_file.close();
@@ -250,7 +302,7 @@ if args.trace:
 
 step_def = f"""\
 void step(V{wrapper_name} *{wrapper_name}{step_trace_args}) {{
-    {wrapper_name}->clk_in ^= 1;
+    {wrapper_name}->clk_pad ^= 1;
     {wrapper_name}->eval();
     {step_trace_body}
 }}
@@ -284,11 +336,13 @@ static const uint32_t NUM_RESET_CYCLES = 5;
 
 {step_def}
 
-uint8_t get_bit(uint8_t bit_position, uint{args.chunk_size}_t bit_vector) {{
+template <class T>
+uint8_t get_bit(uint8_t bit_position, T bit_vector) {{
     return (bit_vector >> bit_position) & 1;
 }}
 
-void set_bit(uint8_t value, uint8_t bit_position, uint{args.chunk_size}_t &bit_vector) {{
+template <class T>
+void set_bit(uint8_t value, uint8_t bit_position, T &bit_vector) {{
     bit_vector |= (value << bit_position);
 }}
 
@@ -311,6 +365,10 @@ int main(int argc, char **argv) {{
 
     {stall}
 
+    // Start clock at 1
+    {wrapper_name}->clk_pad = 1;
+    {wrapper_name}->eval();
+
     std::cout << "Beginning configuration" << std::endl;
     for (int i = 0; i < {len(config_data_arr)}; i++) {{
       {run_config}
@@ -327,9 +385,9 @@ int main(int argc, char **argv) {{
     std::cout << "Running test" << std::endl;
     for (int i = 0; i < {args.max_clock_cycles}; i++) {{
         {input_body}
-        {step_command}  // clk_in = 0
+        {step_command}  // clk_pad = 0
         {output_body}
-        {step_command}  // clk_in = 1
+        {step_command}  // clk_pad = 1
         {log}
     }}
     std::cout << "Done testing" << std::endl;
