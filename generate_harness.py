@@ -165,7 +165,7 @@ if (args.use_jtag):
     """
 elif reset_in_pad is not None:
     stall += f"""\
-{wrapper_name}->{reset_in_pad}_in = (1 << {pad_bit}); // STALL"""
+{wrapper_name}->{reset_in_pad} = (1 << {pad_bit}); // STALL"""
 
 if (args.use_jtag):
     unstall += f"""
@@ -173,7 +173,7 @@ if (args.use_jtag):
     """
 elif reset_in_pad is not None:
     unstall += f"""\
-{wrapper_name}->{reset_in_pad}_in = (0 << {pad_bit}); // UNSTALL"""
+{wrapper_name}->{reset_in_pad} = (0 << {pad_bit}); // UNSTALL"""
 
 if (args.use_jtag):
     run_config += f"""
@@ -254,18 +254,18 @@ for module in io_collateral:
             #        "mode": "in",
             #        "width": 16
             input_body += f"""
-        {wrapper_name}->{pad_bus}_in = 0;"""
+        {wrapper_name}->{pad_bus} = 0;"""
             for bit, pad_info in io_collateral[module]["bits"].items():
                 pad_bit = pad_info["pad_bit"]
                 input_body += f"""
-        {wrapper_name}->{pad_bus}_in |= get_bit<uint{args.input_chunk_size}_t>({bit:>2s}, {module}_in) << {pad_bit:>2s};"""
+        {wrapper_name}->{pad_bus} |= get_bit<uint{args.input_chunk_size}_t>({bit:>2s}, {module}_in) << {pad_bit:>2s};"""
         else:
             # "io16in_in_arg_1_0_0": {
             #     "pad_bus" : "pads_W_0",
             #     "mode": "in",
             #     "width": 16
             input_body += f"""
-        {wrapper_name}->{pad_bus}_in = {module}_in;"""
+        {wrapper_name}->{pad_bus} = {module}_in;"""
 
     else: # mode == "out"
         pad_bus = io_collateral[module]["pad_bus"]
@@ -278,11 +278,11 @@ for module in io_collateral:
             for bit, pad_info in io_collateral[module]["bits"].items():
                 pad_bit = pad_info["pad_bit"]
                 output_body += f"""
-        set_bit<uint{args.output_chunk_size}_t>((({wrapper_name}->{pad_bus}_out >> {pad_bit:>2s}) & 0x1),
+        set_bit<uint{args.output_chunk_size}_t>((({wrapper_name}->{pad_bus} >> {pad_bit:>2s}) & 0x1),
                                                 {bit:>2s}, {module}_out);"""
         else:
             output_body += f"""
-        {module}_out = {wrapper_name}->{pad_bus}_out;"""
+        {module}_out = {wrapper_name}->{pad_bus};"""
 
         output_body += f"""
         {module}_file.write((char *)&{module}_out, sizeof(uint{args.output_chunk_size}_t));"""
